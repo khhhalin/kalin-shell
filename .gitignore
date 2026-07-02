@@ -1,0 +1,13 @@
+# Qt/QML compiled cache
+*.qmlc
+*.jsc
+.qmlcache/
+qmlcache/
+
+# Editor / OS junk
+*.swp
+*~
+.DS_Store
+
+# Logs
+*.log

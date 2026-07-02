@@ -1,0 +1,19 @@
+module kalin.services
+
+singleton BarConfig 1.0 BarConfig.qml
+singleton CompositorService 1.0 CompositorService.qml
+singleton DisplayService 1.0 DisplayService.qml
+singleton KalinViewport 1.0 KalinViewport.qml
+singleton LauncherIndex 1.0 LauncherIndex.qml
+singleton MediaService 1.0 MediaService.qml
+singleton MenuState 1.0 MenuState.qml
+singleton NiriIpc 1.0 NiriIpc.qml
+singleton NotificationService 1.0 NotificationService.qml
+singleton OverviewState 1.0 OverviewState.qml
+singleton PromptState 1.0 PromptState.qml
+singleton SystemActions 1.0 SystemActions.qml
+singleton SystemPanelState 1.0 SystemPanelState.qml
+singleton TaskbarService 1.0 TaskbarService.qml
+singleton Theme 1.0 Theme.qml
+singleton TmuxService 1.0 TmuxService.qml
+singleton UsageStats 1.0 UsageStats.qml
