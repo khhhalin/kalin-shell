@@ -79,6 +79,10 @@ Variants {
             WlrLayershell.layer: WlrLayer.Overlay
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             WlrLayershell.namespace: "windows-bar:window-actions"
+            /* Purely informational + shown while Super is held (which is also the
+             * window-drag modifier), so it must be click-through: an empty input
+             * mask passes pointer events to the windows below. */
+            mask: Region {}
 
             // Android-style radial: round action buttons fan out along an arch
             // above a small hub when Super is held; they retract into the hub on
