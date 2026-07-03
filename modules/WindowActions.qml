@@ -44,7 +44,14 @@ Variants {
             id: holdTimer
             interval: 180
             repeat: false
-            onTriggered: if (KalinViewport.superHeld && scope.hasFocused) menu.shown = true
+            onTriggered: {
+                if (KalinViewport.superHeld && scope.hasFocused) {
+                    menu.shown = true
+                    // Spotlight the active window (camera focus + dim rest);
+                    // driven here so it fires only on a real hold, not a chord.
+                    KalinViewport.spotlight(true)
+                }
+            }
         }
 
         Connections {
@@ -54,6 +61,8 @@ Variants {
                     if (!menu.shown) holdTimer.restart()
                 } else {
                     holdTimer.stop()
+                    if (menu.shown)
+                        KalinViewport.spotlight(false)
                     menu.shown = false
                 }
                 // Exit prompt: flash on the rising edge of exit_pending.
@@ -96,9 +105,16 @@ Variants {
                     NumberAnimation { duration: 220; easing.type: Easing.OutBack; easing.overshoot: 1.1 }
                 }
 
-                readonly property real cx: width / 2
-                readonly property real cy: height / 2 + 40   // hub sits a bit low so the arch reads up
-                readonly property real ringR: 150
+                // Anchor the radial to the focused window's on-screen rect so the
+                // buttons flow out of the window itself; fall back to screen center.
+                readonly property rect win: KalinViewport.focusedRect
+                readonly property bool haveWin: win.width > 0 && win.height > 0
+                readonly property real cx: haveWin ? win.x + win.width / 2 : width / 2
+                readonly property real cy: haveWin ? win.y + win.height / 2 : height / 2 + 40
+                // Buttons sit just outside the window edge.
+                readonly property real ringR: haveWin
+                    ? Math.max(140, Math.min(win.width, win.height) / 2 + 90)
+                    : 150
                 readonly property real arcSpan: 2.3          // radians (~132°) the arch spans
 
                 // Central hub: names the window the actions target.

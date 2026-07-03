@@ -42,6 +42,8 @@ Singleton {
     property string focusedTitle: ""
     property bool focusedFullscreen: false
     property bool focusedFloating: false
+    // Focused window's on-screen rect (px), for flowing overlays out of it.
+    property rect focusedRect: Qt.rect(0, 0, 0, 0)
 
     signal stateChanged()
 
@@ -89,6 +91,8 @@ Singleton {
             root.cropActive = !!msg.crop
             root.superHeld = !!msg.super_held
             root.exitPending = !!msg.exit_pending
+            if (msg.rect)
+                root.focusedRect = Qt.rect(msg.rect.x, msg.rect.y, msg.rect.w, msg.rect.h)
             if (msg.focused) {
                 root.focusedAppId = msg.focused.appid || ""
                 root.focusedTitle = msg.focused.title || ""
@@ -110,4 +114,5 @@ Singleton {
     function zoomBy(factor): void { send("zoom " + factor) }
     function zoomReset(): void { send("zoom-reset") }
     function toggleFollow(): void { send("follow-toggle") }
+    function spotlight(on): void { send("spotlight " + (on ? 1 : 0)) }
 }
