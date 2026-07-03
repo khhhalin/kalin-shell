@@ -24,11 +24,11 @@ Variants {
 
         // Window actions and the keys that trigger them (see code/config/config.h).
         readonly property var actions: [
-            { key: "Q",        label: "Close" },
-            { key: "E",        label: "Fullscreen" },
-            { key: "⇧ Space",  label: "Float" },
-            { key: "C",        label: "Crop" },
-            { key: "Ctrl ← →", label: "Move column" },
+            { glyph: "✕",  key: "Q",       label: "Close" },
+            { glyph: "⛶",  key: "E",       label: "Fullscreen" },
+            { glyph: "❒",  key: "⇧Space",  label: "Float" },
+            { glyph: "◳",  key: "C",       label: "Crop" },
+            { glyph: "↔",  key: "Ctrl←→",  label: "Move" },
         ]
 
         readonly property bool hasFocused:
@@ -65,7 +65,7 @@ Variants {
             id: menu
             screen: scope.modelData
             property bool shown: false
-            visible: shown || menuCard.opacity > 0.01
+            visible: radial.expand > 0.01
             color: "transparent"
 
             anchors { top: true; bottom: true; left: true; right: true }
@@ -74,70 +74,96 @@ Variants {
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             WlrLayershell.namespace: "windows-bar:window-actions"
 
-            Rectangle {
-                id: menuCard
-                anchors.centerIn: parent
-                width: Math.max(260, header.implicitWidth + 48)
-                height: layout.implicitHeight + 28
-                radius: 14
-                color: Theme.scrim
-                border.color: Theme.border
-                border.width: 1
-                opacity: menu.shown ? 1 : 0
-                scale: menu.shown ? 1 : 0.96
-                Behavior on opacity { NumberAnimation { duration: 140 } }
-                Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+            // Android-style radial: round action buttons fan out along an arch
+            // above a small hub when Super is held; they retract into the hub on
+            // release. `expand` (0..1) drives both the fly-out radius and fade.
+            Item {
+                id: radial
+                anchors.fill: parent
 
-                Column {
-                    id: layout
-                    anchors { left: parent.left; right: parent.right;
-                              verticalCenter: parent.verticalCenter
-                              leftMargin: 18; rightMargin: 18 }
-                    spacing: 8
+                property real expand: menu.shown ? 1 : 0
+                Behavior on expand {
+                    NumberAnimation { duration: 220; easing.type: Easing.OutBack; easing.overshoot: 1.1 }
+                }
 
+                readonly property real cx: width / 2
+                readonly property real cy: height / 2 + 40   // hub sits a bit low so the arch reads up
+                readonly property real ringR: 150
+                readonly property real arcSpan: 2.3          // radians (~132°) the arch spans
+
+                // Central hub: names the window the actions target.
+                Rectangle {
+                    x: radial.cx - width / 2
+                    y: radial.cy - height / 2
+                    width: 76; height: 76; radius: 38
+                    color: Theme.scrim
+                    border.color: Theme.border
+                    border.width: 1
+                    opacity: radial.expand
                     Text {
-                        id: header
-                        width: parent.width
+                        anchors.centerIn: parent
+                        width: 64
+                        horizontalAlignment: Text.AlignHCenter
                         elide: Text.ElideRight
                         text: KalinViewport.focusedAppId.length > 0
                               ? KalinViewport.focusedAppId
                               : (KalinViewport.focusedTitle || "window")
                         color: Theme.textSecondary
-                        font.pixelSize: 12
+                        font.pixelSize: 11
                         font.bold: true
                     }
+                }
 
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                Repeater {
+                    model: scope.actions
+                    delegate: Item {
+                        id: node
+                        required property int index
+                        required property var modelData
 
-                    Repeater {
-                        model: scope.actions
-                        delegate: Row {
-                            id: actionRow
-                            required property var modelData
-                            width: layout.width
-                            spacing: 12
+                        readonly property int n: scope.actions.length
+                        // Fan angle around straight-up (0); negative = left.
+                        readonly property real ang:
+                            -radial.arcSpan / 2
+                            + (n <= 1 ? radial.arcSpan / 2
+                                      : index * radial.arcSpan / (n - 1))
+                        readonly property real rr: radial.ringR * radial.expand
+
+                        width: 108; height: 108
+                        x: radial.cx + rr * Math.sin(ang) - width / 2
+                        y: radial.cy - rr * Math.cos(ang) - height / 2
+                        opacity: radial.expand
+
+                        Column {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 6
 
                             Rectangle {
-                                width: Math.max(48, keyText.implicitWidth + 16)
-                                height: 24
-                                radius: 6
-                                color: Theme.surface
-                                border.color: Theme.borderSubtle
+                                width: 64; height: 64; radius: 32
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                color: Theme.surfaceActive
+                                border.color: Theme.accent
                                 border.width: 1
                                 Text {
-                                    id: keyText
                                     anchors.centerIn: parent
-                                    text: actionRow.modelData.key
+                                    text: node.modelData.glyph
                                     color: Theme.accent
-                                    font.pixelSize: 12
+                                    font.pixelSize: 24
                                     font.bold: true
                                 }
                             }
                             Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: actionRow.modelData.label
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: node.modelData.label
                                 color: Theme.textBright
-                                font.pixelSize: 13
+                                font.pixelSize: 12
+                                font.bold: true
+                            }
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: node.modelData.key
+                                color: Theme.textSecondary
+                                font.pixelSize: 10
                             }
                         }
                     }
