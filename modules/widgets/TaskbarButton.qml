@@ -31,53 +31,77 @@ Item {
     signal peekRequested(int screenX)
     signal peekCleared()
 
-    // Square button, same height as the bar so it fills it completely
-    implicitWidth:  BarConfig.barHeight
+    property bool hovered: false
+
+    // Width grows on hover to reveal the app name.
+    implicitWidth:  contentRow.implicitWidth + 14
     implicitHeight: BarConfig.barHeight
+
+    Behavior on implicitWidth { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
 
     // ── Background ─────────────────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
         radius: BarConfig.buttonRadius
         color:  root.isFocused   ? Theme.surfaceActive
-              : hover.hovered    ? Theme.surfaceAlt
+              : root.hovered    ? Theme.surfaceAlt
               : "transparent"
         border.width: root.isFocused ? 1 : 0
         border.color: Theme.border
     }
 
-    // ── Icon (shift up slightly when indicator is visible) ─────────────────────
+    // ── Icon + name row (centered, name hidden when not hovered) ───────────────
     readonly property int _iconOffset: root.isRunning ? -3 : 0
 
-    Image {
-        id: icon
+    Row {
+        id: contentRow
         anchors.centerIn: parent
         anchors.verticalCenterOffset: root._iconOffset
-        width:  BarConfig.taskbarIconSize
-        height: BarConfig.taskbarIconSize
-        source: root.iconName.length > 0 ? ("image://icon/" + root.iconName) : ""
-        fillMode: Image.PreserveAspectFit
-        smooth: true
-        mipmap: true
-        visible: status === Image.Ready && root.iconName.length > 0
-    }
+        spacing: 6
 
-    // Letter badge – shown when the icon fails to load or no icon name is set
-    Rectangle {
-        visible: !icon.visible
-        anchors.centerIn: parent
-        anchors.verticalCenterOffset: root._iconOffset
-        width:  BarConfig.taskbarIconSize
-        height: BarConfig.taskbarIconSize
-        radius: BarConfig.taskbarIconSize * 0.27
-        color:  "#2f4a7a"
+        Item {
+            width: BarConfig.taskbarIconSize
+            height: BarConfig.taskbarIconSize
+
+            Image {
+                id: icon
+                anchors.fill: parent
+                source: root.iconName.length > 0 ? ("image://icon/" + root.iconName) : ""
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+                mipmap: true
+                visible: status === Image.Ready && root.iconName.length > 0
+            }
+
+            // Letter badge – shown when the icon fails to load or no icon name is set
+            Rectangle {
+                visible: !icon.visible
+                anchors.fill: parent
+                radius: BarConfig.taskbarIconSize * 0.27
+                color:  "#2f4a7a"
+
+                Text {
+                    anchors.centerIn: parent
+                    text:           root.appName.length > 0 ? root.appName[0].toUpperCase() : "?"
+                    color:          Theme.text
+                    font.pixelSize: BarConfig.taskbarFallbackFontSize
+                    font.bold:      true
+                }
+            }
+        }
 
         Text {
-            anchors.centerIn: parent
-            text:           root.appName.length > 0 ? root.appName[0].toUpperCase() : "?"
-            color:          Theme.text
-            font.pixelSize: BarConfig.taskbarFallbackFontSize
-            font.bold:      true
+            id: nameText
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.appName
+            color: Theme.text
+            font.pixelSize: BarConfig.clockFontSize
+            width: root.hovered ? implicitWidth : 0
+            opacity: root.hovered ? 1 : 0
+            clip: true
+
+            Behavior on width  { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
+            Behavior on opacity { NumberAnimation { duration: 90 } }
         }
     }
 
@@ -112,6 +136,7 @@ Item {
     HoverHandler {
         id: hover
         onHoveredChanged: {
+            root.hovered = hover.hovered
             if (hover.hovered) {
                 const pt = root.mapToGlobal(root.width / 2, 0)
                 root.peekRequested(pt.x)

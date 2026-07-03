@@ -32,6 +32,9 @@ ShellRoot {
     Overview {}
     Osd {}
 
+    // Hold-Super window-actions hint menu + "Esc again to quit" prompt.
+    WindowActions {}
+
     // Notification popups (freedesktop NotificationServer).
     Notifications {}
 

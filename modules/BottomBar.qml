@@ -20,10 +20,6 @@ PanelWindow {
     // Provided by controller (still used for pin logic elsewhere).
     property bool leftPinned: false
 
-    // Some compositors require an explicit exclusive-focus request for
-    // layer surfaces before TextInput will receive key events.
-    property bool _initializingKeyboard: false
-
     // Visual padding on the left edge to keep the menu icon centered
     // between the screen edge and the search box.
     property int leftEdgePadding: BarConfig.edgePadding
@@ -31,9 +27,6 @@ PanelWindow {
     signal leftClicked()
     signal rightClicked()
     signal requestCloseAll()
-    signal searchSubmitted()
-    signal searchUp()
-    signal searchDown()
     // Relays right-click info up to WindowsBarScreen which owns the context menu PanelWindow.
     signal taskbarContextRequested(string appId, int buttonCenterX)
     // Relays hover info up for the live window-peek popup.
@@ -41,25 +34,21 @@ PanelWindow {
     signal taskbarPeekCleared()
     signal systemTabRequested(string tab)
 
-    property alias searchText: search.text
-
-    // Width of the search box — set from outside to align with the launcher list.
-    property int searchBoxWidth: BarConfig.searchBoxWidth
-
     // Hovering anywhere in the bar under the left panel keeps it open.
     // Set this to panelWidth from WindowsBarScreen.
     property int panelHoverWidth: BarConfig.panelWidth
 
     property bool leftHovered: false
     // True when clock or any status widget is hovered — drives right panel open.
-    readonly property bool rightHovered: rightButton.hovered
+    readonly property bool rightHovered: statsBtn.hovered
+                                      || rightButton.hovered
                                       || wifiBtn.hovered
                                       || btBtn.hovered
                                       || batBtn.hovered
                                       || volBtn.hovered
                                       || displayBtn.hovered
 
-    // Which status widget is currently hovered ("wifi"|"bluetooth"|"battery"|"volume"|"display"|"")
+    // Which status widget is currently hovered ("stats"|"wifi"|"bluetooth"|"battery"|"volume"|"display"|"clock"|"")
     property string statusHoveredTab: ""
 
     implicitHeight: heightHint
@@ -85,28 +74,6 @@ PanelWindow {
         ? WlrKeyboardFocus.Exclusive
         : WlrKeyboardFocus.None
     WlrLayershell.namespace: "windows-bar:bar"
-
-    Timer {
-        id: keyboardInitTimer
-        interval: 120
-        repeat: false
-        onTriggered: {
-            bar._initializingKeyboard = false
-            if (bar.leftActive) Qt.callLater(search.focusForTyping)
-        }
-    }
-
-    onLeftActiveChanged: {
-        if (bar.leftActive) {
-            bar._initializingKeyboard = true
-            keyboardInitTimer.restart()
-            // Try immediately, then again after the compositor focus settles.
-            Qt.callLater(search.focusForTyping)
-        } else {
-            keyboardInitTimer.stop()
-            search.clearAndUnfocus()
-        }
-    }
 
     Rectangle {
         id: bg
@@ -174,23 +141,10 @@ PanelWindow {
             }
         }
 
-        SearchBox {
-            id: search
-            anchors.left: leftButton.right
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: bar.leftEdgePadding
-            implicitHeight: BarConfig.searchBoxHeight
-            implicitWidth: bar.searchBoxWidth
-
-            onSubmitted: bar.searchSubmitted()
-            onMoveUp: bar.searchUp()
-            onMoveDown: bar.searchDown()
-        }
-
-        // Running / pinned app icons — positioned just right of the search box
+        // Running / pinned app icons — positioned just right of the menu button.
         TaskbarRow {
             id: taskbarRow
-            anchors.left:           search.right
+            anchors.left:           leftButton.right
             anchors.leftMargin:     BarConfig.edgePadding
             anchors.verticalCenter: parent.verticalCenter
             onContextRequested: (appId, x) => bar.taskbarContextRequested(appId, x)
@@ -220,6 +174,15 @@ PanelWindow {
             // StatusNotifier (system tray) icons, left of the status widgets.
             SystemTrayRow {
                 anchors.verticalCenter: parent.verticalCenter
+            }
+
+            SystemStatsWidget {
+                id: statsBtn
+                anchors.verticalCenter: parent.verticalCenter
+                active: bar.rightActive && (statsBtn.hovered || SystemPanelState.rightOwner === "stats")
+                onClicked:        bar.systemTabRequested("stats")
+                onHoveredChanged: if (hovered) bar.statusHoveredTab = "stats"
+                                  else if (bar.statusHoveredTab === "stats") bar.statusHoveredTab = ""
             }
 
             WifiWidget {
@@ -270,6 +233,11 @@ PanelWindow {
 
             active: bar.rightActive && (rightButton.hovered
                     || (bar.statusHoveredTab === "" && SystemPanelState.rightOwner === "clock"))
+
+            onHoveredChanged: {
+                if (hovered) bar.statusHoveredTab = "clock"
+                else if (bar.statusHoveredTab === "clock") bar.statusHoveredTab = ""
+            }
 
             onClicked: bar.rightClicked()
         }

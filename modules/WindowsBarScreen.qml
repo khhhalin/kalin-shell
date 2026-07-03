@@ -222,22 +222,11 @@ Item {
             anchors.fill: parent
             railWidth:    root.barHeight
             panelOpen:    root.leftOpen
-            query:        bar.searchText
             editMode:     root.editMode
             fontScale:    BarConfig.panelFontScale
             onLaunched:   root.closeAll()
             onEditModeToggleRequested: root.toggleEditMode()
             onFontScaleDeltaRequested: delta => root.adjustFontScale(delta)
-
-            // bar and startDrawer are both in scope here:
-            // bar via the component's creation context (WindowsBarScreen document),
-            // startDrawer as the root id of this component instance.
-            Connections {
-                target: bar
-                function onSearchSubmitted() { startDrawer.submitSearch() }
-                function onSearchUp()        { startDrawer.searchUp()     }
-                function onSearchDown()      { startDrawer.searchDown()   }
-            }
         }
     }
 
@@ -274,6 +263,8 @@ Item {
         onHoverChanged: hovered => root.rightPanelHover = hovered
         content: root.effectiveOwner === "clock"
                  ? calendarComponent
+                 : root.effectiveOwner === "stats"
+                 ? statsComponent
                  : root.effectiveOwner === "volume"
                  ? mixerComponent
                  : systemComponent
@@ -281,6 +272,7 @@ Item {
 
     Component { id: systemComponent;   SystemPanel   { anchors.fill: parent } }
     Component { id: calendarComponent; CalendarPanel { anchors.fill: parent } }
+    Component { id: statsComponent;    StatsPanel    { anchors.fill: parent } }
     Component { id: mixerComponent;    MixerPanel    { anchors.fill: parent } }
 
     // ── Bottom bar ────────────────────────────────────────────────────────────
@@ -288,8 +280,10 @@ Item {
         id: bar
         screen:           root.screen
         heightHint:       root.barHeight
-        searchBoxWidth:   BarConfig.searchBoxWidth
-        panelHoverWidth:  root.panelWidth
+        // Keep the launcher alive only while hovering the menu-button area, not
+        // the taskbar icons. The taskbar sits immediately to the right of the
+        // menu button, so the hover zone ends where the taskbar begins.
+        panelHoverWidth:  root.barHeight + BarConfig.edgePadding * 2
         leftActive:       root.leftOpen
         rightActive:    root.rightOpen
         leftPinned:     root.leftPinned

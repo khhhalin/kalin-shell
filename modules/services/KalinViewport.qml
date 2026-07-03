@@ -12,7 +12,8 @@ import Quickshell.Io
 //
 // Wire protocol (newline-delimited), matched to code/src/modules/ipc.c:
 //   server -> client: {"type":"state","viewport":{x,y,zoom,follow,follow_new},
-//                      "crop":bool,"focused":{appid,title,fullscreen}}
+//                      "crop":bool,"super_held":bool,"exit_pending":bool,
+//                      "focused":{appid,title,fullscreen}}
 //   client -> server: pan <dx> <dy> | zoom <factor> | zoom-reset | follow-toggle
 // ─────────────────────────────────────────────────────────────────────────────
 Singleton {
@@ -30,6 +31,10 @@ Singleton {
     property bool follow: false
     property bool followNew: false
     property bool cropActive: false
+
+    // Transient input state for shell overlays.
+    property bool superHeld: false      // Super key currently held down
+    property bool exitPending: false    // quit() armed; waiting for 2nd Esc
 
     // Focused window mirrored from the compositor (foreign-toplevel is the
     // authoritative window list; this is a convenience for OSD/labels).
@@ -81,6 +86,8 @@ Singleton {
                 root.followNew = !!msg.viewport.follow_new
             }
             root.cropActive = !!msg.crop
+            root.superHeld = !!msg.super_held
+            root.exitPending = !!msg.exit_pending
             if (msg.focused) {
                 root.focusedAppId = msg.focused.appid || ""
                 root.focusedTitle = msg.focused.title || ""
