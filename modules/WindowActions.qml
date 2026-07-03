@@ -65,7 +65,9 @@ Variants {
             id: menu
             screen: scope.modelData
             property bool shown: false
-            visible: radial.expand > 0.01
+            // Include `shown` directly: the window must be visible for the
+            // radial fly-out animation to tick (otherwise expand never leaves 0).
+            visible: shown || radial.expand > 0.01
             color: "transparent"
 
             anchors { top: true; bottom: true; left: true; right: true }
