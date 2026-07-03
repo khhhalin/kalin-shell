@@ -93,9 +93,9 @@ Variants {
              * mask passes pointer events to the windows below. */
             mask: Region {}
 
-            // Android-style radial: round action buttons fan out along an arch
-            // above a small hub when Super is held; they retract into the hub on
-            // release. `expand` (0..1) drives both the fly-out radius and fade.
+            // Android-style side menu: round action buttons flow out from the
+            // right edge of the focused window in a gently-curved vertical arc.
+            // `expand` (0..1) drives the horizontal fly-out and fade.
             Item {
                 id: radial
                 anchors.fill: parent
@@ -105,40 +105,15 @@ Variants {
                     NumberAnimation { duration: 220; easing.type: Easing.OutBack; easing.overshoot: 1.1 }
                 }
 
-                // Anchor the radial to the focused window's on-screen rect so the
-                // buttons flow out of the window itself; fall back to screen center.
+                // Anchor to the right edge of the focused window's on-screen rect
+                // (fall back to a bit right of screen centre).
                 readonly property rect win: KalinViewport.focusedRect
                 readonly property bool haveWin: win.width > 0 && win.height > 0
-                readonly property real cx: haveWin ? win.x + win.width / 2 : width / 2
-                readonly property real cy: haveWin ? win.y + win.height / 2 : height / 2 + 40
-                // Buttons sit just outside the window edge.
-                readonly property real ringR: haveWin
-                    ? Math.max(140, Math.min(win.width, win.height) / 2 + 90)
-                    : 150
-                readonly property real arcSpan: 2.3          // radians (~132°) the arch spans
-
-                // Central hub: names the window the actions target.
-                Rectangle {
-                    x: radial.cx - width / 2
-                    y: radial.cy - height / 2
-                    width: 76; height: 76; radius: 38
-                    color: Theme.scrim
-                    border.color: Theme.border
-                    border.width: 1
-                    opacity: radial.expand
-                    Text {
-                        anchors.centerIn: parent
-                        width: 64
-                        horizontalAlignment: Text.AlignHCenter
-                        elide: Text.ElideRight
-                        text: KalinViewport.focusedAppId.length > 0
-                              ? KalinViewport.focusedAppId
-                              : (KalinViewport.focusedTitle || "window")
-                        color: Theme.textSecondary
-                        font.pixelSize: 11
-                        font.bold: true
-                    }
-                }
+                readonly property real edgeX: haveWin ? win.x + win.width : width * 0.62
+                readonly property real midY: haveWin ? win.y + win.height / 2 : height / 2
+                readonly property real vGap: 96      // vertical spacing between buttons
+                readonly property real outX: 64      // gap from the window edge
+                readonly property real bulge: 40     // how far the middle buttons bow out
 
                 Repeater {
                     model: scope.actions
@@ -148,25 +123,25 @@ Variants {
                         required property var modelData
 
                         readonly property int n: scope.actions.length
-                        // Fan angle around straight-up (0); negative = left.
-                        readonly property real ang:
-                            -radial.arcSpan / 2
-                            + (n <= 1 ? radial.arcSpan / 2
-                                      : index * radial.arcSpan / (n - 1))
-                        readonly property real rr: radial.ringR * radial.expand
+                        readonly property real row: index - (n - 1) / 2.0
+                        readonly property real half: Math.max(1, (n - 1) / 2.0)
+                        // Parabolic bow so the column curves out to the right.
+                        readonly property real bow:
+                            radial.bulge * (1 - (row / half) * (row / half))
+                        readonly property real targetX: radial.edgeX + radial.outX + bow
+                        readonly property real ty: radial.midY + row * radial.vGap
 
-                        width: 108; height: 108
-                        x: radial.cx + rr * Math.sin(ang) - width / 2
-                        y: radial.cy - rr * Math.cos(ang) - height / 2
+                        width: 220; height: 72
+                        // Fly out horizontally from the window edge; vertical fixed.
+                        x: radial.edgeX + (targetX - radial.edgeX) * radial.expand
+                        y: ty - height / 2
                         opacity: radial.expand
 
-                        Column {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 6
-
+                        Row {
+                            spacing: 12
                             Rectangle {
-                                width: 64; height: 64; radius: 32
-                                anchors.horizontalCenter: parent.horizontalCenter
+                                width: 60; height: 60; radius: 30
+                                anchors.verticalCenter: parent.verticalCenter
                                 color: Theme.surfaceActive
                                 border.color: Theme.accent
                                 border.width: 1
@@ -174,22 +149,24 @@ Variants {
                                     anchors.centerIn: parent
                                     text: node.modelData.glyph
                                     color: Theme.accent
-                                    font.pixelSize: 24
+                                    font.pixelSize: 22
                                     font.bold: true
                                 }
                             }
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: node.modelData.label
-                                color: Theme.textBright
-                                font.pixelSize: 12
-                                font.bold: true
-                            }
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: node.modelData.key
-                                color: Theme.textSecondary
-                                font.pixelSize: 10
+                            Column {
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 2
+                                Text {
+                                    text: node.modelData.label
+                                    color: Theme.textBright
+                                    font.pixelSize: 14
+                                    font.bold: true
+                                }
+                                Text {
+                                    text: node.modelData.key
+                                    color: Theme.textSecondary
+                                    font.pixelSize: 11
+                                }
                             }
                         }
                     }
