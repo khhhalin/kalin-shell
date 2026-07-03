@@ -41,6 +41,7 @@ Singleton {
     property string focusedAppId: ""
     property string focusedTitle: ""
     property bool focusedFullscreen: false
+    property bool focusedFloating: false
 
     signal stateChanged()
 
@@ -92,6 +93,7 @@ Singleton {
                 root.focusedAppId = msg.focused.appid || ""
                 root.focusedTitle = msg.focused.title || ""
                 root.focusedFullscreen = !!msg.focused.fullscreen
+                root.focusedFloating = !!msg.focused.floating
             }
             root.available = true
             root.stateChanged()

@@ -26,7 +26,11 @@ Variants {
         readonly property var actions: [
             { glyph: "✕",  key: "Q",       label: "Close" },
             { glyph: "⛶",  key: "E",       label: "Fullscreen" },
-            { glyph: "❒",  key: "⇧Space",  label: "Float" },
+            // Toggles with the focused window's state: re-tile a floating window
+            // or float a tiled one (both Super+Shift+Space).
+            KalinViewport.focusedFloating
+                ? { glyph: "▦",  key: "⇧Space", label: "Tile" }
+                : { glyph: "❒",  key: "⇧Space", label: "Float" },
             { glyph: "◳",  key: "C",       label: "Crop" },
             { glyph: "↔",  key: "Ctrl←→",  label: "Move" },
         ]
