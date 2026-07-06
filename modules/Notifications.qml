@@ -18,7 +18,7 @@ Variants {
         PanelWindow {
             id: win
             screen: modelData
-            visible: NotificationService.popups.length > 0
+            visible: NotificationService.popups.count > 0
             color: "transparent"
 
             anchors { top: true; right: true; bottom: true }
@@ -45,9 +45,9 @@ Variants {
                     model: NotificationService.popups
 
                     delegate: NotificationCard {
-                        required property var modelData
+                        required property var notifObj
                         width: col.width
-                        notif: modelData
+                        notif: notifObj
 
                         opacity: 0
                         Component.onCompleted: opacity = 1

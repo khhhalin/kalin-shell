@@ -15,8 +15,15 @@ import Quickshell.Services.Notifications
 Singleton {
     id: root
 
-    // Active popups, most-recent first.
-    property var popups: []
+    // Active popups, most-recent first. A ListModel so the Repeater in
+    // Notifications.qml gets incremental insert/remove instead of a full
+    // model teardown+rebuild on every notification — reassigning a plain JS
+    // array there was crashing Qt's delegate-model incubation
+    // (VDMListDelegateDataType::createMissingProperties, SIGSEGV) on every
+    // incoming notification.
+    property alias popups: popupsModel
+
+    ListModel { id: popupsModel }
 
     NotificationServer {
         id: server
@@ -27,14 +34,18 @@ Singleton {
 
         onNotification: function (notif) {
             notif.tracked = true
-            const list = root.popups.slice()
-            list.unshift(notif)
-            root.popups = list.slice(0, 6) // cap visible stack
+            popupsModel.insert(0, { notifObj: notif })
+            while (popupsModel.count > 6) popupsModel.remove(popupsModel.count - 1) // cap visible stack
         }
     }
 
     function remove(notif): void {
-        root.popups = root.popups.filter(n => n !== notif)
+        for (let i = 0; i < popupsModel.count; i++) {
+            if (popupsModel.get(i).notifObj === notif) {
+                popupsModel.remove(i)
+                break
+            }
+        }
     }
 
     function dismiss(notif): void {
@@ -43,8 +54,9 @@ Singleton {
     }
 
     function clearAll(): void {
-        const all = root.popups.slice()
-        root.popups = []
+        const all = []
+        for (let i = 0; i < popupsModel.count; i++) all.push(popupsModel.get(i).notifObj)
+        popupsModel.clear()
         for (const n of all) if (n) n.dismiss()
     }
 }
