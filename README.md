@@ -1,10 +1,16 @@
 # quickshell
 
+[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
+![Language: QML](https://img.shields.io/badge/language-QML-41cd52.svg)
+![Quickshell](https://img.shields.io/badge/Quickshell-0.3.0-blueviolet.svg)
+
 Bottom bar + docked side panels for the NixOS desktop, built on
 [Quickshell](https://git.outfoxxed.me/outfoxxed/quickshell) 0.3.0. It runs on
 both **niri** and [kalin-wm](https://github.com/khhhalin/kalin-wm); the same
-shell config is used for both compositors via a unified `CompositorService`
+shell config drives both compositors through one unified `CompositorService`
 backend (niri IPC vs. kalin-wm's IPC socket + foreign-toplevel protocol).
+
+**Part of the kalin-wm stack:** [kalin-wm](https://github.com/khhhalin/kalin-wm) (compositor) · **quickshell** (companion shell, this repo) · [test-vm](https://github.com/khhhalin/test-vm) (hardware-accurate test harness)
 
 On **kalin-wm** it is the primary companion shell: bar, overview, docked
 panels, notifications, OSD. On **niri** it remains the original native bar,
