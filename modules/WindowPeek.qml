@@ -100,11 +100,59 @@ PanelWindow {
                             border.color: modelData.activated ? Theme.focusRing : Theme.border
                             clip: true
 
-                            ScreencopyView {
-                                anchors.fill:    parent
+                            // Wrapped in a Loader, same as Overview.qml — see the
+                            // comment inside for why a ScreencopyView's captureSource
+                            // must never be reassigned to null on a live instance.
+                            Loader {
+                                anchors.fill: parent
                                 anchors.margins: 1
-                                live:            root.visible
-                                captureSource:   modelData
+                                // Also gated on root.show, not just the toplevel's
+                                // validity: root.appId can stay set to the last-hovered
+                                // app after the popup closes (only `show` flips), and
+                                // this Repeater/ScreencopyView tree is directly
+                                // embedded (not itself Loader-gated) in root's always-
+                                // instantiated component tree — a PanelWindow's
+                                // `visible: false` only hides it, it doesn't tear down
+                                // children. Without this, the last-hovered app's
+                                // thumbnails kept capturing in the background
+                                // indefinitely after the popup closed. See the matching
+                                // comment in Overview.qml — same underlying mistake.
+                                active: modelData !== null && root.show
+                                sourceComponent: Component {
+                                    ScreencopyView {
+                                        id: peekView
+                                        anchors.fill: parent
+                                        // Snapshotted once at creation — see the matching
+                                        // comment in Overview.qml. `captureSource:
+                                        // modelData` directly reassigns to null the
+                                        // instant the toplevel closes, and Quickshell's
+                                        // own capture-negotiation code appears to react
+                                        // to that reassignment (not just captureFrame())
+                                        // by attempting capture_toplevel_with_wlr_toplevel_handle
+                                        // with a null handle — a fatal, non-recoverable
+                                        // Wayland protocol error, confirmed live even
+                                        // after the Timer-only guard below.
+                                        property var pinnedSource: null
+                                        Component.onCompleted: pinnedSource = modelData
+                                        captureSource: pinnedSource
+                                        // Periodic snapshot, not `live: true` — see
+                                        // OverviewState.thumbnailRefreshMs's comment:
+                                        // one tile per hovered app here, but this
+                                        // popup can show several toplevels of the
+                                        // same app at once, and continuous per-frame
+                                        // capture was part of the dmabuf-negotiation
+                                        // churn behind this bar's recurring crashes.
+                                        live: false
+
+                                        Timer {
+                                            interval: OverviewState.thumbnailRefreshMs
+                                            running: peekView.visible
+                                            repeat: true
+                                            triggeredOnStart: true
+                                            onTriggered: if (peekView.captureSource) peekView.captureFrame()
+                                        }
+                                    }
+                                }
                             }
 
                             MouseArea {

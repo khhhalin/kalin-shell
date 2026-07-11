@@ -10,31 +10,24 @@ Singleton {
 
     // ── Overall geometry ─────────────────────────────────────────────────────
     property int barHeight:   44    // bottom bar height; also used as rail button size
-    property int panelWidth:  440   // width of the left/right slide-out drawer
+    property int panelWidth:  440   // width of the right slide-out drawer
     property int panelHeight: 520   // height of the drawer (upward from bar)
-    property real panelFontScale: 1.0 // font scale for panel contents (edit mode)
+
+    // Docked TUI panels (DockedPanel.qml) need real terminal-cell columns/rows,
+    // not just visual space — btop specifically refuses to render below 80x24
+    // and prints "Terminal size too small" instead. panelWidth/panelHeight
+    // above were sized for QML content and are too narrow for that (measured:
+    // 440px only fit ~51 columns at foot's default font). Sized generously
+    // for 80x24 at a typical monospace cell (~8x16px) plus margin.
+    property int tuiPanelWidth:  700
+    property int tuiPanelHeight: 480
 
     // ── Global spacing ────────────────────────────────────────────────────────
-    property int edgePadding:    8  // left margin: screen edge → NixOS button / icon rail
-    property int contentPadding: 8  // gap between icon rail and launcher/power-menu area
+    property int edgePadding:    8  // margin between screen edge and bar contents
     property int buttonRadius:   8  // corner radius for all interactive buttons
 
     // ── Icon sizes ────────────────────────────────────────────────────────────
     property int railIconSize:  22  // SVG icon render size inside rail/task buttons
-    property int railGlyphSize: 14  // fallback text-glyph font size in RailIconButton
-
-    // ── Search box ────────────────────────────────────────────────────────────
-    // Width is derived from panel geometry so the right edge of the search box
-    // aligns exactly with the right edge of the launcher list.
-    // Search box starts at: edgePadding + barHeight + edgePadding (left edge of content area)
-    // Launcher list ends at: panelWidth - contentPadding (right edge of content area)
-    // Therefore: width = panelWidth - contentPadding - barHeight - 2*edgePadding
-    readonly property int searchBoxWidth: panelWidth - barHeight - 2 * edgePadding - contentPadding
-    property int searchBoxHeight:   32  // input height
-    property int searchBoxPadding:  10  // internal margin (all sides)
-    property int searchBoxSpacing:   8  // gap between magnifier glyph and text input
-    property int searchBoxIconSize: 14  // magnifier "⌕" glyph font size
-    property int searchBoxFontSize: 13  // input & placeholder text size
 
     // ── Clock button ──────────────────────────────────────────────────────────
     property real clockWidthRatio:  2.6  // clockWidth = barHeight × this
@@ -50,32 +43,7 @@ Singleton {
     property int workspaceContainerRadius:  10  // background rounded-rect radius
     property int workspaceWidgetHeight:     28  // total widget height (includes click area)
 
-    // ── Launcher list ─────────────────────────────────────────────────────────
-    property int launcherDefaultWidth:    320  // fallback implicitWidth  (overridden by layout)
-    property int launcherDefaultHeight:   360  // fallback implicitHeight (overridden by layout)
-    property int launcherListMargin:       6  // inset inside the rounded container
-    property int launcherContainerRadius: 10  // outer rounded-rect corner radius
-    property int launcherRowHeight:       34  // height of each app/command row
-    property int launcherRowGap:           2  // vertical spacing between rows
-    property int launcherRowRadius:        8  // per-row corner radius
-    property int launcherRowHPadding:     10  // left & right inset inside each row
-    property int launcherRowSpacing:      10  // gap between icon badge and text column
-    property int launcherIconSize:        22  // app/cmd icon badge width & height
-    property int launcherIconRadius:       6  // icon badge corner radius
-    property int launcherNameFontSize:    12  // primary (app name) text size
-    property int launcherSubFontSize:     10  // secondary (exec / desktopId) text size
-    property int launcherTextWidthInset:  70  // text column width = list.width − this
-
-    // ── Power menu ────────────────────────────────────────────────────────────
-    property int powerRowHeight:       54  // height of each action row
-    property int powerRowGap:          12  // vertical spacing between rows
-    property int powerMenuRowRadius:   10  // row corner radius
-    property int powerMenuRowHPadding: 16  // left inset inside each row
-    property int powerMenuRowSpacing:  14  // glyph ↔ label gap
-    property int powerMenuGlyphSize:   22  // unicode power-symbol font size
-    property int powerMenuLabelSize:   14  // action label font size
-
-    // ── Taskbar (Win10-style running/pinned app icons) ─────────────────────────
+    // ── Taskbar (running/pinned app icons) ───────────────────────────────────
     // Default pinned app IDs. TaskbarService will load from
     // ~/.config/quickshell/windows-bar/taskbar-pins.json if it exists.
     property var taskbarPins: ["vivaldi-stable", "foot", "code"]

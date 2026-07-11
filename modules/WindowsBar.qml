@@ -2,17 +2,12 @@ import QtQuick
 import Quickshell
 
 Variants {
-    // Bar lives on a single monitor (the laptop panel) instead of one per
-    // screen. Re-evaluates when screens change, so plugging/unplugging an
-    // external display won't spawn a second bar. Falls back to the first
-    // available screen so we're never left bar-less if LVDS-1 is absent.
-    model: {
-        const want = "LVDS-1"
-        const all = Quickshell.screens
-        for (let i = 0; i < all.length; i++)
-            if (all[i].name === want) return [all[i]]
-        return all.length > 0 ? [all[0]] : []
-    }
+    // One bar per connected monitor — kalin-wm's camera is a single shared
+    // infinite canvas (every monitor is a window into the same coordinate
+    // space, not an independent camera per screen), but each monitor still
+    // gets its own bar + docked panels. Re-evaluates on Quickshell.screens
+    // changes, so plugging/unplugging a display adds/removes its bar live.
+    model: Quickshell.screens
 
     Scope {
         required property ShellScreen modelData

@@ -14,17 +14,8 @@ PanelWindow {
     // Caller controls height via this hint.
     property int heightHint: BarConfig.barHeight
 
-    property bool leftActive: false
     property bool rightActive: false
 
-    // Provided by controller (still used for pin logic elsewhere).
-    property bool leftPinned: false
-
-    // Visual padding on the left edge to keep the menu icon centered
-    // between the screen edge and the search box.
-    property int leftEdgePadding: BarConfig.edgePadding
-
-    signal leftClicked()
     signal rightClicked()
     signal requestCloseAll()
     // Relays right-click info up to WindowsBarScreen which owns the context menu PanelWindow.
@@ -34,19 +25,15 @@ PanelWindow {
     signal taskbarPeekCleared()
     signal systemTabRequested(string tab)
 
-    // Hovering anywhere in the bar under the left panel keeps it open.
-    // Set this to panelWidth from WindowsBarScreen.
-    property int panelHoverWidth: BarConfig.panelWidth
-
-    property bool leftHovered: false
-    // True when clock or any status widget is hovered — drives right panel open.
-    readonly property bool rightHovered: statsBtn.hovered
-                                      || rightButton.hovered
-                                      || wifiBtn.hovered
-                                      || btBtn.hovered
+    // True when clock or battery is hovered — the only two status widgets
+    // still on the old SidePanel/rightOwner drawer system. stats/wifi/
+    // bluetooth/volume/display all moved to DockedPanel (real docked TUI
+    // apps, own hover/open state) and must NOT appear here: including them
+    // made hovering e.g. the wifi button also pop the SidePanel drawer open
+    // showing whatever SystemPanelState.rightOwner last was (usually
+    // "battery"), visually obstructing the real docked panel underneath.
+    readonly property bool rightHovered: rightButton.hovered
                                       || batBtn.hovered
-                                      || volBtn.hovered
-                                      || displayBtn.hovered
 
     // Which status widget is currently hovered ("stats"|"wifi"|"bluetooth"|"battery"|"volume"|"display"|"clock"|"")
     property string statusHoveredTab: ""
@@ -65,14 +52,8 @@ PanelWindow {
     exclusionMode: ExclusionMode.Auto
 
     WlrLayershell.layer: WlrLayer.Top
-    // Grab the keyboard (Exclusive) ONLY when the launcher is deliberately
-    // opened by click (leftPinned) — hovering the panel open must NOT steal
-    // keyboard focus from application windows. Use None (not OnDemand) at idle:
-    // Quickshell 0.3.0 sends OnDemand to the compositor as an EXCLUSIVE grab,
-    // which would starve every window of keyboard input.
-    WlrLayershell.keyboardFocus: bar.leftPinned
-        ? WlrKeyboardFocus.Exclusive
-        : WlrKeyboardFocus.None
+    // Never steal keyboard focus; the bar is purely informational.
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     WlrLayershell.namespace: "windows-bar:bar"
 
     Rectangle {
@@ -88,44 +69,7 @@ PanelWindow {
             color: Theme.surface
             // When a drawer is open, hiding this avoids a visible seam
             // between the bar and the roll-up panel.
-            opacity: (bar.leftActive || bar.rightActive) ? 0 : 1
-        }
-
-        // Left button
-        TaskButton {
-            id: leftButton
-            anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            anchors.leftMargin: bar.leftEdgePadding
-            width: implicitHeight
-
-            active: bar.leftActive
-            iconSource: Qt.resolvedUrl("../assets/nixos.svg")
-            tooltip: "Menu"
-
-            onHoveredChanged: bar.leftHovered = leftButton.hovered || panelZone.hovered
-
-            onClicked: bar.leftClicked()
-        }
-
-        // Invisible hover zone spanning the full panel width.
-        // Keeps the panel alive when the cursor is in the bar directly below it.
-        Item {
-            id: panelZone
-            anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            width: bar.panelHoverWidth
-
-            property bool hovered: false
-
-            HoverHandler {
-                onHoveredChanged: {
-                    panelZone.hovered = hovered
-                    bar.leftHovered = hovered || leftButton.hovered
-                }
-            }
+            opacity: bar.rightActive ? 0 : 1
         }
 
         // Close panels when right-clicking empty bar area.
@@ -141,10 +85,10 @@ PanelWindow {
             }
         }
 
-        // Running / pinned app icons — positioned just right of the menu button.
+        // Running / pinned app icons — starts at the left edge.
         TaskbarRow {
             id: taskbarRow
-            anchors.left:           leftButton.right
+            anchors.left:           parent.left
             anchors.leftMargin:     BarConfig.edgePadding
             anchors.verticalCenter: parent.verticalCenter
             onContextRequested: (appId, x) => bar.taskbarContextRequested(appId, x)
@@ -176,29 +120,57 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
             }
 
+            // Real, riced TUI apps docked into the bar's own layout (kalin-wm
+            // only; inert elsewhere) via DockedPanel.qml, independent of the
+            // right-side SidePanel/rightOwner system the QML-rendered panels
+            // below still use (BatteryWidget, DisplayWidget's placeholder).
             SystemStatsWidget {
                 id: statsBtn
                 anchors.verticalCenter: parent.verticalCenter
-                active: bar.rightActive && (statsBtn.hovered || SystemPanelState.rightOwner === "stats")
-                onClicked:        bar.systemTabRequested("stats")
-                onHoveredChanged: if (hovered) bar.statusHoveredTab = "stats"
-                                  else if (bar.statusHoveredTab === "stats") bar.statusHoveredTab = ""
+                active: statsPanel.open
+                onHoveredChanged: statsPanel.buttonHover = hovered
+                onClicked: statsPanel.togglePin()
+            }
+            DockedPanel {
+                id: statsPanel
+                // Per-monitor app_id (one bar per screen now — see
+                // WindowsBar.qml) so each monitor docks/spawns its own real
+                // btop instead of every monitor's bar fighting over the same
+                // client_find_by_appid() match in the compositor.
+                appId: "kalin-stats-panel-" + bar.screen.name
+                command: ["foot", "--app-id=" + statsPanel.appId, "-e", "btop"]
+                screen: bar.screen
+                barHeight: bar.heightHint
             }
 
-            WifiWidget {
+            WifiLauncher {
                 id: wifiBtn
-                active: bar.rightActive && (wifiBtn.hovered || SystemPanelState.rightOwner === "wifi")
-                onClicked:        bar.systemTabRequested("wifi")
-                onHoveredChanged: if (hovered) bar.statusHoveredTab = "wifi"
-                                  else if (bar.statusHoveredTab === "wifi") bar.statusHoveredTab = ""
+                active: wifiPanel.open
+                onHoveredChanged: wifiPanel.buttonHover = hovered
+                onClicked: wifiPanel.togglePin()
             }
-            BluetoothWidget {
+            DockedPanel {
+                id: wifiPanel
+                appId: "kalin-wifi-panel-" + bar.screen.name
+                command: ["foot", "--app-id=" + wifiPanel.appId, "-e", "nmtui"]
+                screen: bar.screen
+                barHeight: bar.heightHint
+            }
+
+            BluetoothLauncher {
                 id: btBtn
-                active: bar.rightActive && (btBtn.hovered || SystemPanelState.rightOwner === "bluetooth")
-                onClicked:        bar.systemTabRequested("bluetooth")
-                onHoveredChanged: if (hovered) bar.statusHoveredTab = "bluetooth"
-                                  else if (bar.statusHoveredTab === "bluetooth") bar.statusHoveredTab = ""
+                active: btPanel.open
+                onHoveredChanged: btPanel.buttonHover = hovered
+                onClicked: btPanel.togglePin()
             }
+            DockedPanel {
+                id: btPanel
+                appId: "kalin-bt-panel-" + bar.screen.name
+                command: ["foot", "--app-id=" + btPanel.appId, "-e", "bluetuith"]
+                screen: bar.screen
+                barHeight: bar.heightHint
+            }
+
             BatteryWidget {
                 id: batBtn
                 active: bar.rightActive && (batBtn.hovered || SystemPanelState.rightOwner === "battery")
@@ -206,19 +178,50 @@ PanelWindow {
                 onHoveredChanged: if (hovered) bar.statusHoveredTab = "battery"
                                   else if (bar.statusHoveredTab === "battery") bar.statusHoveredTab = ""
             }
+
             VolumeWidget {
                 id: volBtn
-                active: bar.rightActive && (volBtn.hovered || SystemPanelState.rightOwner === "volume")
-                onClicked:        bar.systemTabRequested("volume")
-                onHoveredChanged: if (hovered) bar.statusHoveredTab = "volume"
-                                  else if (bar.statusHoveredTab === "volume") bar.statusHoveredTab = ""
+                active: volPanel.open
+                onHoveredChanged: volPanel.buttonHover = hovered
+                onClicked: volPanel.togglePin()
             }
+            DockedPanel {
+                id: volPanel
+                appId: "kalin-volume-panel-" + bar.screen.name
+                command: ["foot", "--app-id=" + volPanel.appId, "-e", "wiremix"]
+                screen: bar.screen
+                barHeight: bar.heightHint
+            }
+
             DisplayWidget {
                 id: displayBtn
-                active: bar.rightActive && (displayBtn.hovered || SystemPanelState.rightOwner === "display")
-                onClicked:        bar.systemTabRequested("display")
-                onHoveredChanged: if (hovered) bar.statusHoveredTab = "display"
-                                  else if (bar.statusHoveredTab === "display") bar.statusHoveredTab = ""
+                active: displayPanel.open
+                onHoveredChanged: displayPanel.buttonHover = hovered
+                onClicked: displayPanel.togglePin()
+            }
+            DockedPanel {
+                id: displayPanel
+                appId: "kalin-display-panel-" + bar.screen.name
+                // Note: the executable is also literally named
+                // kalin-display-panel (a home-config-provided script) — only
+                // the --app-id= argument gets the per-monitor suffix.
+                command: ["foot", "--app-id=" + displayPanel.appId, "-e", "kalin-display-panel"]
+                screen: bar.screen
+                barHeight: bar.heightHint
+            }
+
+            ClipboardButton {
+                id: clipBtn
+                active: clipPanel.open
+                onHoveredChanged: clipPanel.buttonHover = hovered
+                onClicked: clipPanel.togglePin()
+            }
+            DockedPanel {
+                id: clipPanel
+                appId: "kalin-clip-panel-" + bar.screen.name
+                command: ["foot", "--app-id=" + clipPanel.appId, "-e", "kalin-clip-picker-loop"]
+                screen: bar.screen
+                barHeight: bar.heightHint
             }
         }
 

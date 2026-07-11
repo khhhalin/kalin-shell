@@ -11,34 +11,36 @@ Singleton {
     id: root
 
     // ── Surfaces ─────────────────────────────────────────────────────────────
-    property color bar:          "#1f1f1f"  // bottom bar / main panel background
-    property color surface:      "#2a2a2a"  // elevated surface, dividers
-    property color surfaceAlt:   "#252525"  // hovered button background
-    property color surfaceActive:"#2f2f2f"  // active/focused button background
-    property color overlayDim:   "#cc101014" // full-screen overlay backdrop (overview)
-    property color scrim:        "#dd1f1f1f" // OSD / tooltip background
+    // Warm palette: oranges/yellows/browns throughout the rice, replacing the
+    // old cyan/gray scheme (see the ledger for when/why).
+    property color bar:          "#241a12"  // bottom bar / main panel background
+    property color surface:      "#332419"  // elevated surface, dividers
+    property color surfaceAlt:   "#2b1f15"  // hovered button background
+    property color surfaceActive:"#3d2c1c"  // active/focused button background
+    property color overlayDim:   "#cc17100a" // full-screen overlay backdrop (overview)
+    property color scrim:        "#dd2b1f15" // OSD / tooltip background
 
     // ── Borders ──────────────────────────────────────────────────────────────
-    property color border:       "#3a3a3a"
-    property color borderSubtle:  "#2a2a2a"
+    property color border:       "#4a3625"
+    property color borderSubtle: "#33261a"
 
     // ── Text ─────────────────────────────────────────────────────────────────
-    property color textBright:   "#f0f0f0"
-    property color text:         "#e6e6e6"  // primary
-    property color textDim:      "#cccccc"
-    property color textSecondary:"#888888"
-    property color textMuted:    "#555555"
+    property color textBright:   "#fff3e0"
+    property color text:         "#f0ddc0"  // primary
+    property color textDim:      "#d8c4a0"
+    property color textSecondary:"#b08d5f"
+    property color textMuted:    "#6b5642"
 
     // ── Accents ──────────────────────────────────────────────────────────────
-    property color accent:       "#4fc3f7"  // primary accent (cyan)
-    property color accentBlue:    "#4a9eff"
-    property color accentGreen:   "#4ade80"
-    property color accentPurple:  "#a78bfa"
+    property color accent:       "#f0a030"  // primary accent (warm amber)
+    property color accentBlue:    "#e8833a" // burnt orange
+    property color accentGreen:   "#c9a227" // olive-gold
+    property color accentPurple:  "#a8674a" // dusty rust-brown
 
     // ── Status ───────────────────────────────────────────────────────────────
-    property color error:        "#ff6b6b"
-    property color warning:       "#ffaa44"
-    property color success:       "#4ade80"
+    property color error:        "#e0552f"  // warm red-orange
+    property color warning:       "#ffb347"
+    property color success:       "#9aa83f" // warm gold-green
 
     // ── Helpers ──────────────────────────────────────────────────────────────
     // Translucent accent for highlights/selection backgrounds.
@@ -46,5 +48,5 @@ Singleton {
         return Qt.rgba(c.r, c.g, c.b, a)
     }
     readonly property color accentSoft: withAlpha(accent, 0.18)
-    readonly property color focusRing:  "#4f7fff"
+    readonly property color focusRing:  "#ffcf5c"
 }

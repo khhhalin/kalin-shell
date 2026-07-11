@@ -11,9 +11,19 @@ import "./services"
 //   1. Hold-Super menu: while the Super key is held and a window is focused,
 //      show that window's available actions with their key hints. The user
 //      presses the key (still holding Super) to invoke the compositor keybind;
-//      this overlay is purely informational, not clickable.
+//      this overlay is purely informational, not clickable — an empty input
+//      mask (see `menu.mask` below) is load-bearing here, not incidental:
+//      Super is also the window-drag modifier, and a real click-through
+//      region big enough to cover clickable buttons would swallow those drags.
 //   2. Exit prompt: when quit() is armed (first Super+Escape), flash
 //      "Press Esc again to quit" so the double-press confirmation is visible.
+//
+// Layout: normally an Android-style arc flowing out of the focused window's
+// right edge (see `radial` below). A window spanning (close to) the full
+// screen width has no room to its right for that, so past a width threshold
+// the menu switches to a side dock pinned to the screen's right edge instead
+// (`radial.dockMode`) — same buttons, same on/off states, just anchored to
+// the screen rather than the window.
 // ─────────────────────────────────────────────────────────────────────────────
 Variants {
     model: Quickshell.screens
@@ -22,49 +32,30 @@ Variants {
         id: scope
         required property ShellScreen modelData
 
-        // Window actions and the keys that trigger them (see code/config/config.h).
+        // Window actions and the keys that trigger them (see
+        // code/config/default_binds.h). `state` is null for a plain
+        // momentary action, or a bool for a toggle whose on/off is shown via
+        // the button's fill/border (see the delegate below).
         readonly property var actions: [
-            { glyph: "✕",  key: "Q",       label: "Close" },
-            { glyph: "⛶",  key: "E",       label: "Fullscreen" },
-            // Toggles with the focused window's state: re-tile a floating window
-            // or float a tiled one (both Super+Shift+Space).
-            KalinViewport.focusedFloating
-                ? { glyph: "▦",  key: "⇧Space", label: "Tile" }
-                : { glyph: "❒",  key: "⇧Space", label: "Float" },
-            { glyph: "◳",  key: "C",       label: "Crop" },
-            { glyph: "↔",  key: "Ctrl←→",  label: "Move" },
+            { glyph: "✕", key: "Q",      label: "Close",   state: null },
+            { glyph: "⛶", key: "E",      label: "Fullscreen", state: KalinViewport.focusedFullscreen },
+            { glyph: "◳", key: "C",      label: "Crop",    state: KalinViewport.cropActive },
+            { glyph: "⧉", key: "⇧O",     label: "Overlap", state: KalinViewport.focusedOverlap },
+            { glyph: "⇄", key: "Ctrl←→", label: "Swap",    state: null },
+            { glyph: "⛓", key: "L",      label: "Link",    state: KalinViewport.pendingConnect },
         ]
 
         readonly property bool hasFocused:
             KalinViewport.focusedAppId.length > 0 || KalinViewport.focusedTitle.length > 0
 
-        // Debounce: only raise the menu after Super has been held briefly, so a
-        // quick Super+<key> chord doesn't flash it.
-        Timer {
-            id: holdTimer
-            interval: 180
-            repeat: false
-            onTriggered: {
-                if (KalinViewport.superHeld && scope.hasFocused) {
-                    menu.shown = true
-                    // Spotlight the active window (camera focus + dim rest);
-                    // driven here so it fires only on a real hold, not a chord.
-                    KalinViewport.spotlight(true)
-                }
-            }
-        }
-
+        // The compositor's bind engine owns the hold timing now: it raises the
+        // menu after a 1s uninterrupted hold of Super (see `hold Super` in
+        // binds.conf) and broadcasts `menu`. We just mirror that flag; no camera
+        // spotlight (it snapped the view around) — the menu appears in place.
         Connections {
             target: KalinViewport
             function onStateChanged() {
-                if (KalinViewport.superHeld) {
-                    if (!menu.shown) holdTimer.restart()
-                } else {
-                    holdTimer.stop()
-                    if (menu.shown)
-                        KalinViewport.spotlight(false)
-                    menu.shown = false
-                }
+                menu.shown = KalinViewport.menuShown && scope.hasFocused
                 // Exit prompt: flash on the rising edge of exit_pending.
                 if (KalinViewport.exitPending && !scope.lastExitPending)
                     exit.flash()
@@ -106,14 +97,26 @@ Variants {
                 }
 
                 // Anchor to the right edge of the focused window's on-screen rect
-                // (fall back to a bit right of screen centre).
+                // (fall back to a bit right of screen centre) — unless the window
+                // is (close to) full screen width, in which case there's no room
+                // to its right for the fly-out arc, so dock to the screen edge
+                // instead (see the header comment).
                 readonly property rect win: KalinViewport.focusedRect
                 readonly property bool haveWin: win.width > 0 && win.height > 0
-                readonly property real edgeX: haveWin ? win.x + win.width : width * 0.62
+                readonly property real fullWidthThreshold: 0.85
+                readonly property bool dockMode:
+                    haveWin && win.width >= width * fullWidthThreshold
+                readonly property real dockInset: 240 // dock column's distance from the right screen edge
+                readonly property real edgeX:
+                    dockMode ? (width - dockInset)
+                             : (haveWin ? win.x + win.width : width * 0.62)
                 readonly property real midY: haveWin ? win.y + win.height / 2 : height / 2
                 readonly property real vGap: 96      // vertical spacing between buttons
-                readonly property real outX: 64      // gap from the window edge
-                readonly property real bulge: 40     // how far the middle buttons bow out
+                readonly property real outX: 64      // gap from the window edge (non-dock mode)
+                readonly property real bulge: 40     // how far the middle buttons bow out (non-dock mode)
+                // In dock mode the buttons fly straight in from off-screen at the
+                // right edge rather than bowing out from a window edge.
+                readonly property real flyFromX: dockMode ? width : edgeX
 
                 Repeater {
                     model: scope.actions
@@ -125,15 +128,23 @@ Variants {
                         readonly property int n: scope.actions.length
                         readonly property real row: index - (n - 1) / 2.0
                         readonly property real half: Math.max(1, (n - 1) / 2.0)
-                        // Parabolic bow so the column curves out to the right.
+                        // Parabolic bow so the column curves out to the right —
+                        // only in the window-relative arc layout; a docked column
+                        // is a straight vertical stack.
                         readonly property real bow:
-                            radial.bulge * (1 - (row / half) * (row / half))
+                            radial.dockMode ? 0
+                                : radial.bulge * (1 - (row / half) * (row / half))
                         readonly property real targetX: radial.edgeX + radial.outX + bow
                         readonly property real ty: radial.midY + row * radial.vGap
 
+                        // A toggle button (state !== null) gets a filled,
+                        // brighter treatment when on; a momentary action (state
+                        // === null) always uses the neutral/off look.
+                        readonly property bool isOn: node.modelData.state === true
+
                         width: 220; height: 72
-                        // Fly out horizontally from the window edge; vertical fixed.
-                        x: radial.edgeX + (targetX - radial.edgeX) * radial.expand
+                        // Fly out horizontally toward the target; vertical fixed.
+                        x: radial.flyFromX + (targetX - radial.flyFromX) * radial.expand
                         y: ty - height / 2
                         opacity: radial.expand
 
@@ -142,13 +153,13 @@ Variants {
                             Rectangle {
                                 width: 60; height: 60; radius: 30
                                 anchors.verticalCenter: parent.verticalCenter
-                                color: Theme.surfaceActive
-                                border.color: Theme.accent
-                                border.width: 1
+                                color: node.isOn ? Theme.accent : Theme.surfaceActive
+                                border.color: node.isOn ? Theme.textBright : Theme.accent
+                                border.width: node.isOn ? 2 : 1
                                 Text {
                                     anchors.centerIn: parent
                                     text: node.modelData.glyph
-                                    color: Theme.accent
+                                    color: node.isOn ? Theme.bar : Theme.accent
                                     font.pixelSize: 22
                                     font.bold: true
                                 }
@@ -156,11 +167,21 @@ Variants {
                             Column {
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 2
-                                Text {
-                                    text: node.modelData.label
-                                    color: Theme.textBright
-                                    font.pixelSize: 14
-                                    font.bold: true
+                                Row {
+                                    spacing: 6
+                                    Text {
+                                        text: node.modelData.label
+                                        color: Theme.textBright
+                                        font.pixelSize: 14
+                                        font.bold: true
+                                    }
+                                    // On/off indicator dot for toggle buttons only.
+                                    Rectangle {
+                                        visible: node.modelData.state !== null
+                                        width: 8; height: 8; radius: 4
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        color: node.isOn ? Theme.success : Theme.textMuted
+                                    }
                                 }
                                 Text {
                                     text: node.modelData.key

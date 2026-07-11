@@ -3,9 +3,9 @@ import Quickshell
 import Quickshell.Wayland
 
 import "./services"
+import "./widgets"
 
-// Per-screen shell: wires the bottom bar, left/right side panels, and IPC.
-// All UI content lives in dedicated components (StartDrawer, BottomBar, SidePanel).
+// Per-screen shell: wires the bottom bar and right-side panel.
 Item {
     id: root
 
@@ -16,99 +16,33 @@ Item {
     property int panelWidth:  BarConfig.panelWidth
     property int panelHeight: BarConfig.panelHeight
 
-    // Edit mode (resize + font scale)
-    property bool editMode: false
-    property bool _prevLeftPinned: false
-    property bool _prevRightPinned: false
-
     // ── Panel open/close state ────────────────────────────────────────────────
-    property bool leftPinned:      false
     property bool rightPinned:     false
-    property bool leftPanelHover:  false
     property bool rightPanelHover: false
-    property bool leftGrace:       false
     property bool rightGrace:      false
 
-    readonly property bool leftHover:  bar.leftHovered
     readonly property bool rightHover: bar.rightHovered
-    readonly property bool leftOpen:   leftPinned  || leftHover  || leftPanelHover  || leftGrace
-    // Keep the right panel open while a password dialog spawned from it is visible.
     readonly property bool rightOpen:  rightPinned || rightHover || rightPanelHover || rightGrace || PromptState.visible
 
     function closeAll(): void {
-        leftPinned  = false; rightPinned  = false
-        leftGrace   = false; rightGrace   = false
+        rightPinned = false
+        rightGrace  = false
         SystemPanelState.rightOwner = ""
-    }
-
-    function setEditMode(enabled): void {
-        if (root.editMode === enabled) return
-        if (enabled) {
-            root._prevLeftPinned = root.leftPinned
-            root._prevRightPinned = root.rightPinned
-            root.leftPinned = true
-            root.rightPinned = true
-        } else {
-            root.leftPinned = root._prevLeftPinned
-            root.rightPinned = root._prevRightPinned
-        }
-        root.editMode = enabled
-    }
-
-    function toggleEditMode(): void {
-        setEditMode(!root.editMode)
-    }
-
-    function adjustFontScale(delta): void {
-        const step = 0.1
-        const minScale = 0.8
-        const maxScale = 1.6
-        const next = Math.max(minScale, Math.min(maxScale, BarConfig.panelFontScale + step * delta))
-        BarConfig.panelFontScale = Math.round(next * 10) / 10
-    }
-
-    function updatePanelWidth(nextWidth): void {
-        const minW = 320
-        const maxW = Math.max(minW, root.screen.width - 80)
-        BarConfig.panelWidth = Math.max(minW, Math.min(maxW, nextWidth))
-    }
-
-    function updatePanelHeight(nextHeight): void {
-        const minH = 260
-        const maxH = Math.max(minH, root.screen.height - root.barHeight - 20)
-        BarConfig.panelHeight = Math.max(minH, Math.min(maxH, nextHeight))
     }
 
     // Grace period: keeps the panel alive while the cursor moves from the
     // bar button into the drawer surface.
     function updateGrace(): void {
-        if      (leftPinned)                  { leftGrace = false; leftCloseTimer.stop()    }
-        else if (leftHover || leftPanelHover) { leftGrace = true;  leftCloseTimer.stop()    }
-        else                                  {                    leftCloseTimer.restart()  }
-
-        if      (rightPinned)                   { rightGrace = false; rightCloseTimer.stop()   }
+        if      (rightPinned)                   { rightGrace = true;  rightCloseTimer.stop()   }
         else if (rightHover || rightPanelHover) { rightGrace = true;  rightCloseTimer.stop()   }
         else                                    {                     rightCloseTimer.restart() }
     }
 
-    onLeftHoverChanged:       updateGrace()
     onRightHoverChanged:      updateGrace()
-    onLeftPanelHoverChanged:  updateGrace()
     onRightPanelHoverChanged: updateGrace()
-    onLeftPinnedChanged:      updateGrace()
     onRightPinnedChanged:     updateGrace()
 
-    Timer { id: leftCloseTimer;  interval: 220; repeat: false; onTriggered: leftGrace  = false }
     Timer { id: rightCloseTimer; interval: 220; repeat: false; onTriggered: rightGrace = false }
-
-    // ── IPC: kanata Win-tap → toggle left panel ───────────────────────────────
-    Connections {
-        target: MenuState
-        function onToggleMenu(): void {
-            root.leftPinned = !root.leftPinned
-            if (root.leftPinned) root.rightPinned = false
-        }
-    }
 
     // ── Click-outside catcher ─────────────────────────────────────────────────
     // Transparent fullscreen surface — active when a panel is pinned OR the
@@ -119,7 +53,7 @@ Item {
     PanelWindow {
         screen:  root.screen
         color:   "transparent"
-        visible: root.leftPinned || root.rightPinned || root.contextMenuOpen
+        visible: root.rightPinned || root.contextMenuOpen
 
         // Click catcher for "outside" clicks.
         // IMPORTANT: exclude the bottom bar area so bar buttons remain clickable
@@ -191,7 +125,6 @@ Item {
                 SystemPanelState.currentTab = tab
                 SystemPanelState.rightOwner = tab
                 root.rightPinned = true
-                root.leftPinned  = false
             }
         }
         function onStatusHoveredTabChanged() {
@@ -199,34 +132,6 @@ Item {
                 SystemPanelState.currentTab = bar.statusHoveredTab
                 root._lastStatusTab = bar.statusHoveredTab
             }
-        }
-    }
-
-    // ── Left panel (start drawer) ─────────────────────────────────────────────
-    SidePanel {
-        screen:      root.screen
-        side:        "left"
-        barHeight:   root.barHeight
-        panelWidth:  root.panelWidth
-        panelHeight: root.panelHeight
-        open:        root.leftOpen
-        editMode:    root.editMode
-
-        onResizeWidthRequested:  w => root.updatePanelWidth(w)
-        onResizeHeightRequested: h => root.updatePanelHeight(h)
-
-        onHoverChanged: hovered => root.leftPanelHover = hovered
-
-        content: StartDrawer {
-            id: startDrawer
-            anchors.fill: parent
-            railWidth:    root.barHeight
-            panelOpen:    root.leftOpen
-            editMode:     root.editMode
-            fontScale:    BarConfig.panelFontScale
-            onLaunched:   root.closeAll()
-            onEditModeToggleRequested: root.toggleEditMode()
-            onFontScaleDeltaRequested: delta => root.adjustFontScale(delta)
         }
     }
 
@@ -248,50 +153,34 @@ Item {
         : cursorInRightZone && _lastStatusTab !== "" ? _lastStatusTab
         : SystemPanelState.rightOwner
 
+    readonly property int effectivePanelHeight: root.panelHeight
+
     SidePanel {
         screen:      root.screen
         side:        "right"
         barHeight:   root.barHeight
         panelWidth:  root.panelWidth
-        panelHeight: root.panelHeight
+        panelHeight: root.effectivePanelHeight
         open:        root.rightOpen
-        editMode:    root.editMode
-
-        onResizeWidthRequested:  w => root.updatePanelWidth(w)
-        onResizeHeightRequested: h => root.updatePanelHeight(h)
 
         onHoverChanged: hovered => root.rightPanelHover = hovered
-        content: root.effectiveOwner === "clock"
-                 ? calendarComponent
-                 : root.effectiveOwner === "stats"
-                 ? statsComponent
-                 : root.effectiveOwner === "volume"
-                 ? mixerComponent
-                 : systemComponent
+        // Only "clock" and "battery" ever reach here now — stats/volume/
+        // wifi/bluetooth/display all moved to their own docked TUI panels
+        // (see BottomBar.qml's DockedPanel instances), so effectiveOwner
+        // can never actually hold those values any more.
+        content: root.effectiveOwner === "clock" ? calendarComponent : systemComponent
     }
 
     Component { id: systemComponent;   SystemPanel   { anchors.fill: parent } }
     Component { id: calendarComponent; CalendarPanel { anchors.fill: parent } }
-    Component { id: statsComponent;    StatsPanel    { anchors.fill: parent } }
-    Component { id: mixerComponent;    MixerPanel    { anchors.fill: parent } }
 
     // ── Bottom bar ────────────────────────────────────────────────────────────
     BottomBar {
         id: bar
         screen:           root.screen
         heightHint:       root.barHeight
-        // Keep the launcher alive only while hovering the menu-button area, not
-        // the taskbar icons. The taskbar sits immediately to the right of the
-        // menu button, so the hover zone ends where the taskbar begins.
-        panelHoverWidth:  root.barHeight + BarConfig.edgePadding * 2
-        leftActive:       root.leftOpen
         rightActive:    root.rightOpen
-        leftPinned:     root.leftPinned
 
-        onLeftClicked: {
-            root.leftPinned = !root.leftPinned
-            if (root.leftPinned) root.rightPinned = false
-        }
         onRightClicked: {
             // Exclusive pin behavior: clicking clock pins it, clicking again unpins.
             // If something else is pinned, switch the pin to clock.
@@ -300,11 +189,10 @@ Item {
                 SystemPanelState.rightOwner = ""
             } else {
                 root.rightPinned = true
-                root.leftPinned = false
                 SystemPanelState.rightOwner = "clock"
             }
         }
         onRequestCloseAll: root.closeAll()
     }
-}
 
+}

@@ -33,8 +33,8 @@ Item {
 
     property bool hovered: false
 
-    // Width grows on hover to reveal the app name.
-    implicitWidth:  contentRow.implicitWidth + 14
+    // Width grows on hover to reveal the app name; minimum width stays square.
+    implicitWidth:  Math.max(contentRow.implicitWidth + 14, BarConfig.barHeight)
     implicitHeight: BarConfig.barHeight
 
     Behavior on implicitWidth { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
@@ -55,7 +55,9 @@ Item {
 
     Row {
         id: contentRow
-        anchors.centerIn: parent
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.leftMargin: (BarConfig.barHeight - BarConfig.taskbarIconSize) / 2
         anchors.verticalCenterOffset: root._iconOffset
         spacing: 6
 
@@ -78,7 +80,7 @@ Item {
                 visible: !icon.visible
                 anchors.fill: parent
                 radius: BarConfig.taskbarIconSize * 0.27
-                color:  "#2f4a7a"
+                color:  Theme.accentBlue
 
                 Text {
                     anchors.centerIn: parent

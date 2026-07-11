@@ -105,15 +105,85 @@ Variants {
                             spacing: 6
 
                             // Live thumbnail when a foreign-toplevel handle exists.
+                            // Wrapped in a Loader keyed on the handle's validity — see
+                            // the comment inside for why the ScreencopyView itself must
+                            // never have its captureSource reassigned to null.
                             Item {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
 
-                                ScreencopyView {
+                                Loader {
                                     anchors.fill: parent
-                                    visible: modelData.toplevel !== null
-                                    live: overview.visible
-                                    captureSource: modelData.toplevel
+                                    // Also gated on OverviewState.visible, not just the
+                                    // toplevel's validity: the enclosing PanelWindow's
+                                    // `visible: OverviewState.visible` (see the file
+                                    // header) only hides the panel — it does NOT tear
+                                    // down this component tree. Without this, every
+                                    // open window's thumbnail Timer fires
+                                    // captureFrame() every thumbnailRefreshMs forever,
+                                    // in the background, whether Overview is ever
+                                    // opened or not — meaning the close-race with
+                                    // Quickshell's capture code (see the pinnedSource
+                                    // comment below) was reproducible on *every* window
+                                    // close, not just while Overview happened to be
+                                    // open. Only actually construct (and only actually
+                                    // capture) while the user can see it.
+                                    active: modelData.toplevel !== null && OverviewState.visible
+                                    sourceComponent: Component {
+                                        ScreencopyView {
+                                            id: thumbView
+                                            anchors.fill: parent
+                                            // Snapshotted once at creation (imperative
+                                            // assignment in Component.onCompleted, not a
+                                            // binding) rather than `captureSource:
+                                            // modelData.toplevel` directly. That direct
+                                            // binding reassigns captureSource to null the
+                                            // instant the window closes — and merely
+                                            // *assigning* a null captureSource to a live
+                                            // ScreencopyView appears to make Quickshell's
+                                            // own (compiled, not ours) capture-negotiation
+                                            // code immediately attempt
+                                            // capture_toplevel_with_wlr_toplevel_handle
+                                            // with a null handle, which is a fatal,
+                                            // non-recoverable Wayland protocol error that
+                                            // kills the whole connection — confirmed live
+                                            // on real hardware even after guarding the
+                                            // Timer below (that guard alone wasn't
+                                            // enough; the crash isn't only from
+                                            // captureFrame()). Freezing the value here and
+                                            // destroying this whole Loader'd instance via
+                                            // `active` above (instead of reassigning its
+                                            // property) means captureSource is never once
+                                            // set to null on a live instance.
+                                            property var pinnedSource: null
+                                            Component.onCompleted: pinnedSource = modelData.toplevel
+                                            captureSource: pinnedSource
+                                            // Periodic snapshot, not `live: true` — see
+                                            // the comment on OverviewState.thumbnailRefreshMs
+                                            // for why: every tile
+                                            // "live" at once means every tile
+                                            // renegotiates a buffer on every single
+                                            // compositor frame, and that dmabuf
+                                            // negotiation was observed failing
+                                            // ("No matching formats") and falling
+                                            // back to SHM on *every* attempt — a
+                                            // continuous churn of failed
+                                            // allocations that was the real driver
+                                            // behind this bar's recurring crashes,
+                                            // not just the notification popup model
+                                            // bug fixed separately in
+                                            // NotificationService.qml.
+                                            live: false
+
+                                            Timer {
+                                                interval: OverviewState.thumbnailRefreshMs
+                                                running: thumbView.visible
+                                                repeat: true
+                                                triggeredOnStart: true
+                                                onTriggered: if (thumbView.captureSource) thumbView.captureFrame()
+                                            }
+                                        }
+                                    }
                                 }
 
                                 // Fallback tile (e.g. niri backend without a handle).
