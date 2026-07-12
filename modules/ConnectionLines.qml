@@ -7,7 +7,9 @@ import "./services"
 // ─────────────────────────────────────────────────────────────────────────────
 // ConnectionLines — draws the kalin-wm connection graph (KalinViewport.
 // connections) as dotted/sparkle lines between related windows while Super is
-// held. Also draws the live rubber-band line for a menu-armed pending
+// held, or while native overview mode (Super+O) is open — the graph is most
+// useful to see precisely when you're looking at the whole desktop at once.
+// Also draws the live rubber-band line for a menu-armed pending
 // connect (KalinViewport.pendingConnect, Super+L / WindowActions.qml's
 // "Link" button) from the armed source window to the current cursor
 // position — same dotted/sparkle rendering, just one more edge whose second
@@ -17,9 +19,13 @@ import "./services"
 //
 // Each connection is one undirected edge between two windows (each window
 // can have up to 8, one per compass direction — see enum Octant in
-// kalin.h). Drawn as a string of small twinkling star/dot glyphs along the
-// segment between the two windows' nearest edges (not their centers, so the
-// line doesn't run under the window content).
+// kalin.h). Drawn as a string of twinkling star/dot glyphs along the
+// segment between the two windows' near edges, each inset toward its
+// window's center (not sitting exactly on the boundary, and not running all
+// the way to the center either) — visible as clearly belonging to that
+// window even when it's slightly overlapped by a neighbor, instead of
+// getting squeezed into whatever sliver of shared boundary happens to be
+// between two close/overlapping windows.
 //
 // Purely decorative — like WindowActions' hold-Super menu, a per-screen
 // full-bleed transparent overlay with an EMPTY input mask, always fully
@@ -44,7 +50,7 @@ Variants {
         PanelWindow {
             id: overlay
             screen: scope.modelData
-            visible: KalinViewport.superHeld
+            visible: (KalinViewport.superHeld || KalinViewport.overviewActive)
                 && (KalinViewport.connections.length > 0 || KalinViewport.pendingConnect)
             color: "transparent"
 
@@ -86,7 +92,7 @@ Variants {
                             // line with the occasional twinkling star.
                             readonly property bool big: index % 3 === 0
                             text: big ? "✦" : "•"
-                            font.pixelSize: big ? 15 : 10
+                            font.pixelSize: big ? 20 : 14
                             color: big ? Theme.accentPurple : Theme.accent
                             x: modelData.x - implicitWidth / 2
                             y: modelData.y - implicitHeight / 2
@@ -108,7 +114,7 @@ Variants {
                     required property int index
                     readonly property bool big: index % 3 === 0
                     text: big ? "✦" : "•"
-                    font.pixelSize: big ? 15 : 10
+                    font.pixelSize: big ? 20 : 14
                     color: big ? Theme.accentPurple : Theme.accent
                     x: modelData.x - implicitWidth / 2
                     y: modelData.y - implicitHeight / 2

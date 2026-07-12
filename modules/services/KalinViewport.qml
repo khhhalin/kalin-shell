@@ -51,6 +51,7 @@ Singleton {
     property bool superHeld: false      // Super key currently held down
     property bool menuShown: false      // compositor's hold-Super window menu is up
     property bool exitPending: false    // quit() armed; waiting for 2nd Esc
+    property bool overviewActive: false // native overview mode (Super+O) is open
 
     // Focused window mirrored from the compositor (foreign-toplevel is the
     // authoritative window list; this is a convenience for OSD/labels).
@@ -64,9 +65,10 @@ Singleton {
     // Connection graph: every live edge (each window can have up to 8,
     // one per compass direction), with both endpoints' on-screen rects
     // (already world->screen transformed by the compositor). Always
-    // populated regardless of superHeld — the compositor sends it
-    // unconditionally so we don't need a round-trip when Super is pressed;
-    // we gate the shell-side *drawing* on superHeld instead. Each entry:
+    // populated regardless of superHeld/overviewActive — the compositor
+    // sends it unconditionally so we don't need a round-trip when Super is
+    // pressed or overview opens; we gate the shell-side *drawing* on those
+    // two flags instead (see ConnectionLines.qml). Each entry:
     // {a, b, aRect, bRect} — undirected, a/b order has no meaning.
     property var connections: []
 
@@ -133,6 +135,7 @@ Singleton {
             }
             root.cropActive = !!msg.crop
             root.superHeld = !!msg.super_held
+            root.overviewActive = !!msg.overview
             root.menuShown = !!msg.menu
             root.exitPending = !!msg.exit_pending
             if (msg.rect)

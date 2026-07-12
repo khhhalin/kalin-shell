@@ -5,8 +5,11 @@ import Quickshell
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LineGeometry — pure helper for ConnectionLines: turns two window rects into
-// a string of evenly-spaced points running edge-to-edge between them (not
-// center-to-center, so the line doesn't run under the window content).
+// a string of evenly-spaced points running between them, anchored near (not
+// exactly on) each window's near edge — inset toward the center so the line
+// doesn't run under the window content, but also doesn't sit precisely on a
+// boundary that can end up squeezed into a thin sliver when two windows are
+// close together or slightly overlapping.
 // ─────────────────────────────────────────────────────────────────────────────
 Singleton {
     id: root
@@ -15,10 +18,19 @@ Singleton {
     // line, not just a sparse subset of it.
     readonly property real spacing: 14 // px between points along the line
 
-    // Anchor point on `rect`'s boundary closest to `other`'s center, picking
+    // How far in from the edge, toward the center, each anchor is pulled.
+    // Clamped so it can never cross past the center (see the Math.max/min
+    // below) — small windows still get a sensible anchor instead of
+    // overshooting to the opposite edge.
+    readonly property real edgeInset: 28
+
+    // Anchor point near `rect`'s boundary closest to `other`'s center, picking
     // whichever edge (left/right/top/bottom) the direction to `other` points
-    // through most strongly — gives a clean edge-to-edge connector instead of
-    // a line that visibly cuts across both windows.
+    // through most strongly, then pulling that point in by `edgeInset` toward
+    // the center — gives a clean edge-to-edge connector whose endpoint is
+    // still visibly inside/near the window's own silhouette, instead of a
+    // line that visibly cuts across both windows or one that hugs the exact
+    // boundary (invisible against a neighbor's edge when they nearly touch).
     function _edgeAnchor(rect, other) {
         const cx = rect.x + rect.width / 2
         const cy = rect.y + rect.height / 2
@@ -27,9 +39,15 @@ Singleton {
         const dx = ocx - cx
         const dy = ocy - cy
         if (Math.abs(dx) > Math.abs(dy)) {
-            return { x: dx > 0 ? rect.x + rect.width : rect.x, y: cy }
+            const edgeX = dx > 0 ? rect.x + rect.width : rect.x
+            const x = dx > 0 ? Math.max(cx, edgeX - root.edgeInset)
+                              : Math.min(cx, edgeX + root.edgeInset)
+            return { x, y: cy }
         }
-        return { x: cx, y: dy > 0 ? rect.y + rect.height : rect.y }
+        const edgeY = dy > 0 ? rect.y + rect.height : rect.y
+        const y = dy > 0 ? Math.max(cy, edgeY - root.edgeInset)
+                          : Math.min(cy, edgeY + root.edgeInset)
+        return { x: cx, y }
     }
 
     function hitPoints(rectA, rectB) {
