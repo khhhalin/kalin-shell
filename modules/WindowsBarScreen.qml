@@ -115,63 +115,24 @@ Item {
         function onTaskbarPeekCleared() {
             peekHideTimer.restart()
         }
-        function onSystemTabRequested(tab) {
-            // IMPORTANT: `currentTab` can change just from hover (preview).
-            // Pin/unpin decisions must be based on the pinned owner.
-            if (root.rightPinned && SystemPanelState.rightOwner === tab) {
-                root.rightPinned = false
-                SystemPanelState.rightOwner = ""
-            } else {
-                SystemPanelState.currentTab = tab
-                SystemPanelState.rightOwner = tab
-                root.rightPinned = true
-            }
-        }
-        function onStatusHoveredTabChanged() {
-            if (bar.statusHoveredTab !== "") {
-                SystemPanelState.currentTab = bar.statusHoveredTab
-                root._lastStatusTab = bar.statusHoveredTab
-            }
-        }
     }
 
-    // ── Right panel (system panel or calendar) ────────────────────────────────
-    // Latch the last hovered status-widget tab while the cursor is anywhere in
-    // the right zone (buttons + panel + 220 ms grace).  This prevents a brief
-    // flash to the wrong component while the cursor crosses the gap between the
-    // bar button and the panel surface — the grace timer keeps rightOpen alive
-    // but statusHoveredTab is already empty at that point.
-    property string _lastStatusTab: ""
-
-    readonly property bool cursorInRightZone: rightHover || rightPanelHover || rightGrace
-    onCursorInRightZoneChanged: if (!cursorInRightZone) _lastStatusTab = ""
-
-    // Priority: 1) widget is actively hovered  2) latch (cursor in zone)
-    //           3) pinned owner
-    readonly property string effectiveOwner:
-        bar.statusHoveredTab !== "" ? bar.statusHoveredTab
-        : cursorInRightZone && _lastStatusTab !== "" ? _lastStatusTab
-        : SystemPanelState.rightOwner
-
-    readonly property int effectivePanelHeight: root.panelHeight
-
+    // ── Right panel (calendar) ────────────────────────────────────────────────
+    // The clock is the only remaining SidePanel user — battery (the last
+    // other drawer pane) moved to its own docked battery TUI panel, so the
+    // drawer content is unconditionally the calendar now.
     SidePanel {
         screen:      root.screen
         side:        "right"
         barHeight:   root.barHeight
         panelWidth:  root.panelWidth
-        panelHeight: root.effectivePanelHeight
+        panelHeight: root.panelHeight
         open:        root.rightOpen
 
         onHoverChanged: hovered => root.rightPanelHover = hovered
-        // Only "clock" and "battery" ever reach here now — stats/volume/
-        // wifi/bluetooth/display all moved to their own docked TUI panels
-        // (see BottomBar.qml's DockedPanel instances), so effectiveOwner
-        // can never actually hold those values any more.
-        content: root.effectiveOwner === "clock" ? calendarComponent : systemComponent
+        content: calendarComponent
     }
 
-    Component { id: systemComponent;   SystemPanel   { anchors.fill: parent } }
     Component { id: calendarComponent; CalendarPanel { anchors.fill: parent } }
 
     // ── Bottom bar ────────────────────────────────────────────────────────────

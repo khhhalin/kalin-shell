@@ -1,16 +1,13 @@
 pragma Singleton
 import Quickshell
 
-// Tracks which tab is active in the right-side system panel.
+// State for the right-side SidePanel drawer, which now only serves the
+// clock's calendar. Every other status widget (battery included, since the
+// kalin_tuis suite landed) is a docked TUI panel with its own open state —
+// see BottomBar.qml's DockedPanel instances.
 Singleton {
     id: root
 
-    // Side-panel state. Default to "battery" — the only other tab, "clock",
-    // is opt-in via a click. Stats/volume/wifi/bluetooth/display all moved
-    // to their own docked TUI panels (see BottomBar.qml's DockedPanel
-    // instances) and no longer route through here at all.
-    property string currentTab: "battery"
-
-    // Which widget last pinned the right panel ("clock" | "battery" | "")
+    // Which widget pinned the right panel ("clock" | "")
     property string rightOwner: ""
 }

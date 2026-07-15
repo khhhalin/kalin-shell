@@ -6,7 +6,8 @@ import Quickshell.Wayland
 PanelWindow {
     id: panel
 
-    required property ShellScreen screen
+    // No `property ... screen` — it would shadow PanelWindow's own screen
+    // property and break per-monitor placement (see BottomBar.qml's note).
 
     // "left" or "right"
     property string side: "left"

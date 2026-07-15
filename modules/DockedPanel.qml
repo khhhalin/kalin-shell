@@ -88,7 +88,20 @@ Item {
         }
     }
 
-    Process { id: proc }
+    Process {
+        id: proc
+        // If the TUI quits or crashes (all the kalin_tuis panels bind `q`),
+        // forget the spawn — otherwise `spawned` stays true, _show() re-docks
+        // a dead app_id forever, and the bar button is dead until the shell
+        // restarts. Also drop the pin so a pinned-but-gone panel doesn't
+        // linger "open"; the undock/minimize in _close() no-op harmlessly on
+        // the vanished app_id.
+        onExited: function(exitCode, exitStatus) {
+            root.spawned = false
+            root.pinned = false
+            root.grace = false
+        }
+    }
 
     // First spawn needs a beat before kalin-wm's client list actually has
     // the new surface — dock/minimize address by app_id and silently no-op
@@ -99,7 +112,32 @@ Item {
         id: firstSpawnDelay
         interval: 500
         repeat: false
-        onTriggered: root._show()
+        // Guard on open: if the cursor already left during the spawn beat,
+        // showing now would pop the panel open with nobody hovering it.
+        onTriggered: if (root.open) root._show()
+    }
+
+    // Cold-start race: the first spawn can take seconds to map (python TUI,
+    // cold caches — routine in the test VM). If the panel logically closed
+    // before the client mapped, _close()'s undock/minimize no-op'd against
+    // the not-yet-existing app_id, and the client then maps *visible* via
+    // the armed dockPrep rect with nothing left to hide it. Re-assert the
+    // closed state once a second for a while after the first spawn.
+    Timer {
+        id: lateSpawnSettle
+        interval: 1000
+        repeat: true
+        property int remaining: 0
+        onTriggered: {
+            if (remaining-- <= 0) {
+                stop()
+                return
+            }
+            if (!root.open) {
+                KalinViewport.undock(root.appId)
+                KalinViewport.minimize(root.appId, true)
+            }
+        }
     }
 
     function _show(): void {
@@ -122,6 +160,11 @@ Item {
             proc.command = root.command
             proc.running = true
             firstSpawnDelay.restart()
+            // 60s: a cold TUI spawn in the test VM has been observed to take
+            // over a minute to map; on the host it's sub-second and the
+            // spare ticks are idempotent no-ops.
+            lateSpawnSettle.remaining = 60
+            lateSpawnSettle.restart()
         } else {
             root._show()
         }
