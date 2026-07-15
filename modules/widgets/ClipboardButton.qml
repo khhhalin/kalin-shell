@@ -17,18 +17,23 @@ Item {
     implicitWidth:  BarConfig.barHeight
     implicitHeight: BarConfig.barHeight
 
+    // TUI-box treatment, same as TuiLauncherWidget; nerd-font glyph instead of
+    // the color emoji (emoji ignores `color:` and clashes with the amber rice).
     Rectangle {
         anchors.fill: parent
+        anchors.margins: 3
         radius:       BarConfig.buttonRadius
-        color:        root.active ? "#2f2f2f" : (root.hovered ? "#2a2a2a" : "transparent")
-        border.width: root.active ? 1 : 0
-        border.color: "#3a3a3a"
+        color:        root.active ? Theme.surfaceAlt : "transparent"
+        border.width: 1
+        border.color: root.active ? Theme.accent
+                    : (root.hovered ? Theme.accent : Theme.borderSubtle)
 
         Text {
             anchors.centerIn: parent
-            text:            "📋"
-            color:           "#e6e6e6"
-            font.pixelSize:  BarConfig.railIconSize
+            text:            "󰅍"
+            color:           root.active ? Theme.accent : (root.hovered ? Theme.text : Theme.textDim)
+            font.pixelSize:  BarConfig.clockFontSize
+            font.family:     "monospace"
         }
     }
 

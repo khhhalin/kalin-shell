@@ -10,13 +10,14 @@ Item {
     implicitWidth: visible ? row.implicitWidth : 0
     implicitHeight: visible ? BarConfig.workspaceWidgetHeight : 0
 
+    // TUI-box treatment (pre-rice grays replaced with Theme tokens).
     Rectangle {
         anchors.fill: row
         anchors.margins: -BarConfig.workspaceContainerPadding
-        radius: BarConfig.workspaceContainerRadius
-        color: "#252525"
+        radius: BarConfig.buttonRadius
+        color: Theme.surfaceAlt
         border.width: 1
-        border.color: "#323232"
+        border.color: Theme.borderSubtle
     }
 
     RowLayout {
@@ -31,7 +32,7 @@ Item {
                 width:  BarConfig.workspaceDotSize
                 height: BarConfig.workspaceDotSize
                 radius: BarConfig.workspaceDotRadius
-                color: modelData.isActive ? "#e6e6e6" : "#6d6d6d"
+                color: modelData.isActive ? Theme.accent : Theme.textMuted
 
                 MouseArea {
                     anchors.fill: parent

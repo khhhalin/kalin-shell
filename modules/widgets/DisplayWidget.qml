@@ -16,18 +16,23 @@ Item {
     implicitWidth:  Math.max(iconText.implicitWidth + 20, 64)
     implicitHeight: BarConfig.barHeight
 
+    // TUI-box treatment, same as TuiLauncherWidget.
     Rectangle {
         anchors.fill: parent
+        anchors.margins: 3
         radius:       BarConfig.buttonRadius
-        color:        root.active ? "#2f2f2f" : (root.hovered ? "#2a2a2a" : "transparent")
-        border.width: root.active ? 1 : 0
-        border.color: "#3a3a3a"
+        color:        root.active ? Theme.surfaceAlt : "transparent"
+        border.width: 1
+        border.color: root.active ? Theme.accent
+                    : (root.hovered ? Theme.accent : Theme.borderSubtle)
 
         Text {
             id:              iconText
             anchors.centerIn: parent
             text:            root.label
-            color:           DisplayService.available ? "#e6e6e6" : "#555555"
+            color:           !DisplayService.available ? Theme.textMuted
+                           : (root.active ? Theme.accent
+                           : (root.hovered ? Theme.text : Theme.textDim))
             font.pixelSize:  BarConfig.clockFontSize
             font.family:     "monospace"
         }

@@ -60,17 +60,22 @@ Item {
         return "󰕾"
     }
     readonly property string label: !ready ? ("󰕿 --") : (muted ? (icon + " mute") : (icon + " " + pct + "%"))
-    readonly property color  textColor: muted ? "#ff6b6b" : "#e6e6e6"
+    readonly property color  textColor: muted ? Theme.error
+                                       : (root.active ? Theme.accent
+                                       : (root.hovered ? Theme.text : Theme.textDim))
 
     implicitWidth:  Math.max(volText.implicitWidth + 20, 64)
     implicitHeight: BarConfig.barHeight
 
+    // TUI-box treatment, same as TuiLauncherWidget.
     Rectangle {
         anchors.fill: parent
+        anchors.margins: 3
         radius:       BarConfig.buttonRadius
-        color:        root.active ? "#2f2f2f" : (root.hovered ? "#2a2a2a" : "transparent")
-        border.width: root.active ? 1 : 0
-        border.color: "#3a3a3a"
+        color:        root.active ? Theme.surfaceAlt : "transparent"
+        border.width: 1
+        border.color: root.active ? Theme.accent
+                    : (root.hovered ? Theme.accent : Theme.borderSubtle)
 
         Text {
             id:              volText

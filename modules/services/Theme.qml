@@ -13,7 +13,9 @@ Singleton {
     // ── Surfaces ─────────────────────────────────────────────────────────────
     // Warm palette: oranges/yellows/browns throughout the rice, replacing the
     // old cyan/gray scheme (see the ledger for when/why).
-    property color bar:          "#241a12"  // bottom bar / main panel background
+    // Exactly foot's background (and the screenshot UI's panel ground) so the
+    // bar reads as one continuous TUI surface with the docked foot panels.
+    property color bar:          "#1e1915"  // bottom bar / main panel background
     property color surface:      "#332419"  // elevated surface, dividers
     property color surfaceAlt:   "#2b1f15"  // hovered button background
     property color surfaceActive:"#3d2c1c"  // active/focused button background

@@ -24,7 +24,9 @@ Singleton {
 
     // ── Global spacing ────────────────────────────────────────────────────────
     property int edgePadding:    8  // margin between screen edge and bar contents
-    property int buttonRadius:   8  // corner radius for all interactive buttons
+    property int buttonRadius:   2  // corner radius for all interactive buttons
+                                    // (near-square: TUI-box look, matches the
+                                    // screenshot UI's hard-framed panels)
 
     // ── Icon sizes ────────────────────────────────────────────────────────────
     property int railIconSize:  22  // SVG icon render size inside rail/task buttons

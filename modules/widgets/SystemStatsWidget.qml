@@ -26,17 +26,21 @@ Item {
     implicitWidth:  Math.max(statsText.implicitWidth + 20, 140)
     implicitHeight: BarConfig.barHeight
 
+    // TUI-box treatment, same as TuiLauncherWidget.
     Rectangle {
         anchors.fill: parent
+        anchors.margins: 3
         radius:       BarConfig.buttonRadius
-        color:        root.active ? Theme.surfaceAlt : (root.hovered ? Theme.surface : "transparent")
-        border.width: 0
+        color:        root.active ? Theme.surfaceAlt : "transparent"
+        border.width: 1
+        border.color: root.active ? Theme.accent
+                    : (root.hovered ? Theme.accent : Theme.borderSubtle)
 
         Text {
             id:              statsText
             anchors.centerIn: parent
             text:            root.label
-            color:           Theme.text
+            color:           root.active ? Theme.accent : (root.hovered ? Theme.text : Theme.textDim)
             font.pixelSize:  BarConfig.clockFontSize
             font.family:     "monospace"
         }

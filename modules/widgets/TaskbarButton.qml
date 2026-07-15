@@ -40,14 +40,17 @@ Item {
     Behavior on implicitWidth { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
 
     // ── Background ─────────────────────────────────────────────────────────────
+    // TUI-box treatment: amber frame marks the focused app (idle icons stay
+    // frameless so the taskbar row doesn't read as a wall of boxes).
     Rectangle {
         anchors.fill: parent
+        anchors.margins: 3
         radius: BarConfig.buttonRadius
-        color:  root.isFocused   ? Theme.surfaceActive
+        color:  root.isFocused   ? Theme.surfaceAlt
               : root.hovered    ? Theme.surfaceAlt
               : "transparent"
-        border.width: root.isFocused ? 1 : 0
-        border.color: Theme.border
+        border.width: (root.isFocused || root.hovered) ? 1 : 0
+        border.color: root.isFocused ? Theme.accent : Theme.borderSubtle
     }
 
     // ── Icon + name row (centered, name hidden when not hovered) ───────────────
@@ -129,7 +132,7 @@ Item {
                         : BarConfig.taskbarIndicatorFocusW
                 height: BarConfig.taskbarIndicatorH
                 radius: height / 2
-                color:  root.isFocused ? "#ffffff" : "#606060"
+                color:  root.isFocused ? Theme.accent : Theme.textMuted
             }
         }
     }

@@ -30,7 +30,9 @@ Item {
         return "󰁹"                  // high / full
     }
     readonly property string label: icon + " " + Math.round(pct) + "%"
-    readonly property color  textColor: (pct <= 20 && !charging && !full) ? "#ff6b6b" : "#e6e6e6"
+    readonly property color  textColor: (pct <= 20 && !charging && !full) ? Theme.error
+                                      : root.active ? Theme.accent
+                                      : root.hovered ? Theme.text : Theme.textDim
 
     implicitWidth:  Math.max(batText.implicitWidth + 20, 64)
     implicitHeight: BarConfig.barHeight
@@ -40,12 +42,15 @@ Item {
     // Hide entirely when no battery is present (e.g., desktop)
     visible: present
 
+    // TUI-box treatment, same as TuiLauncherWidget.
     Rectangle {
         anchors.fill: parent
+        anchors.margins: 3
         radius:       BarConfig.buttonRadius
-        color:        root.active ? "#2f2f2f" : (root.hovered ? "#2a2a2a" : "transparent")
-        border.width: root.active ? 1 : 0
-        border.color: "#3a3a3a"
+        color:        root.active ? Theme.surfaceAlt : "transparent"
+        border.width: 1
+        border.color: root.active ? Theme.accent
+                    : (root.hovered ? Theme.accent : Theme.borderSubtle)
 
         Text {
             id:              batText
