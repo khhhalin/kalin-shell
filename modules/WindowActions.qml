@@ -142,51 +142,155 @@ Variants {
                         // === null) always uses the neutral/off look.
                         readonly property bool isOn: node.modelData.state === true
 
-                        width: 220; height: 72
+                        width: 232; height: 60
                         // Fly out horizontally toward the target; vertical fixed.
                         x: radial.flyFromX + (targetX - radial.flyFromX) * radial.expand
                         y: ty - height / 2
                         opacity: radial.expand
 
-                        Row {
-                            spacing: 12
+                        // TUI-retro chip: a box-drawing bordered monospace cell
+                        // rather than a smooth circle, so it reads as one system
+                        // with the docked foot/Textual panels. Active toggles get
+                        // an amber fill + phosphor glow.
+                        Rectangle {
+                            id: chip
+                            anchors.fill: parent
+                            radius: 3
+                            color: node.isOn ? Theme.accentSoft : Theme.withAlpha(Theme.bar, 0.92)
+                            border.color: node.isOn ? Theme.accent : Theme.border
+                            border.width: node.isOn ? 2 : 1
+
+                            // Phosphor glow behind an active chip.
                             Rectangle {
-                                width: 60; height: 60; radius: 30
-                                anchors.verticalCenter: parent.verticalCenter
-                                color: node.isOn ? Theme.accent : Theme.surfaceActive
-                                border.color: node.isOn ? Theme.textBright : Theme.accent
-                                border.width: node.isOn ? 2 : 1
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: node.modelData.glyph
-                                    color: node.isOn ? Theme.bar : Theme.accent
-                                    font.pixelSize: 22
-                                    font.bold: true
-                                }
+                                visible: node.isOn
+                                anchors.fill: parent
+                                anchors.margins: -2
+                                radius: 4
+                                color: "transparent"
+                                border.color: Theme.withAlpha(Theme.focusRing, 0.35)
+                                border.width: 2
+                                z: -1
                             }
-                            Column {
+
+                            Row {
                                 anchors.verticalCenter: parent.verticalCenter
-                                spacing: 2
-                                Row {
-                                    spacing: 6
+                                anchors.left: parent.left
+                                anchors.leftMargin: 10
+                                anchors.right: parent.right
+                                anchors.rightMargin: 10
+                                spacing: 8
+
+                                // Glyph cell in its own mini box-drawing frame.
+                                Rectangle {
+                                    width: 34; height: 34; radius: 2
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: node.isOn ? Theme.accent : Theme.surfaceAlt
+                                    border.color: node.isOn ? Theme.textBright : Theme.accent
+                                    border.width: 1
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: node.modelData.glyph
+                                        color: node.isOn ? Theme.bar : Theme.accent
+                                        font.family: "monospace"
+                                        font.pixelSize: 18
+                                        font.bold: true
+                                    }
+                                }
+
+                                Column {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 1
                                     Text {
                                         text: node.modelData.label
                                         color: Theme.textBright
-                                        font.pixelSize: 14
+                                        font.family: "monospace"
+                                        font.pixelSize: 13
                                         font.bold: true
                                     }
-                                    // On/off indicator dot for toggle buttons only.
-                                    Rectangle {
-                                        visible: node.modelData.state !== null
-                                        width: 8; height: 8; radius: 4
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        color: node.isOn ? Theme.success : Theme.textMuted
+                                    Text {
+                                        text: (node.modelData.state === null ? "  " : (node.isOn ? "◉ " : "○ "))
+                                              + node.modelData.key
+                                        color: node.isOn ? Theme.success : Theme.textSecondary
+                                        font.family: "monospace"
+                                        font.pixelSize: 11
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+
+                // ── Papyrus gauge ────────────────────────────────────────────
+                // Keyboard-driven "dial" for the focused window's per-window
+                // yellowness (0 = normal .. 1 = aged papyrus). Ramped with the
+                // compositor's Super+Y / Super+Shift+Y binds; this only mirrors
+                // the value from IPC state (KalinViewport.focusedYellow). Sits
+                // just below the action arc.
+                Item {
+                    id: papyrus
+                    readonly property real value:
+                        KalinViewport.focusedYellow !== undefined
+                            ? KalinViewport.focusedYellow : 0
+                    readonly property real lastRow:
+                        (scope.actions.length - 1) - (scope.actions.length - 1) / 2.0
+                    width: 300; height: 54
+                    x: radial.flyFromX
+                       + ((radial.edgeX + radial.outX) - radial.flyFromX) * radial.expand
+                    y: radial.midY + (papyrus.lastRow + 1.1) * radial.vGap - height / 2
+                    opacity: radial.expand
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 3
+                        color: Theme.withAlpha(Theme.bar, 0.92)
+                        border.color: papyrus.value > 0 ? Theme.accent : Theme.border
+                        border.width: papyrus.value > 0 ? 2 : 1
+
+                        Column {
+                            anchors.fill: parent
+                            anchors.margins: 8
+                            spacing: 4
+
+                            Row {
+                                width: parent.width
                                 Text {
-                                    text: node.modelData.key
-                                    color: Theme.textSecondary
+                                    text: "▤ PAPYRUS"
+                                    color: Theme.accent
+                                    font.family: "monospace"
                                     font.pixelSize: 11
+                                    font.bold: true
+                                }
+                                Item { width: parent.width - 130; height: 1 }
+                                Text {
+                                    text: papyrus.value.toFixed(2) + "  Y ±⇧"
+                                    color: Theme.textSecondary
+                                    font.family: "monospace"
+                                    font.pixelSize: 11
+                                }
+                            }
+
+                            // Segmented ASCII-style bar gauge (block-fill),
+                            // brighter as yellowness climbs.
+                            Rectangle {
+                                width: parent.width
+                                height: 16
+                                radius: 2
+                                color: Theme.surfaceAlt
+                                border.color: Theme.border
+                                border.width: 1
+                                Rectangle {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 2
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    height: parent.height - 4
+                                    width: (parent.width - 4) * papyrus.value
+                                    radius: 1
+                                    // Cool paper at low value → saturated amber at 1.
+                                    color: Qt.rgba(
+                                        0.94,
+                                        0.90 - 0.28 * papyrus.value,
+                                        0.78 - 0.55 * papyrus.value, 1)
+                                    Behavior on width { NumberAnimation { duration: 90 } }
                                 }
                             }
                         }

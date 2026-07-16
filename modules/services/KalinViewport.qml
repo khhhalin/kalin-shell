@@ -13,7 +13,7 @@ import Quickshell.Io
 // Wire protocol (newline-delimited), matched to code/src/modules/ipc.c:
 //   server -> client: {"type":"state","viewport":{x,y,zoom,follow,follow_new},
 //                      "crop":bool,"super_held":bool,"exit_pending":bool,
-//                      "focused":{appid,title,fullscreen,ontop,overlap},
+//                      "focused":{appid,title,fullscreen,ontop,overlap,yellow},
 //                      "connections":[{a,b,a_rect,b_rect}],
 //                      "pending_connect":{rect,cursor}|null}
 //   client -> server: pan <dx> <dy> | zoom <factor> | zoom-reset | follow-toggle
@@ -59,6 +59,9 @@ Singleton {
     property string focusedTitle: ""
     property bool focusedFullscreen: false
     property bool focusedOverlap: false
+    // Papyrus knob (0..1) of the focused window — drives the paper-mode shader
+    // strength+warmth; mirrored here for the WindowActions papyrus gauge.
+    property real focusedYellow: 0
     // Focused window's on-screen rect (px), for flowing overlays out of it.
     property rect focusedRect: Qt.rect(0, 0, 0, 0)
 
@@ -145,6 +148,7 @@ Singleton {
                 root.focusedTitle = msg.focused.title || ""
                 root.focusedFullscreen = !!msg.focused.fullscreen
                 root.focusedOverlap = !!msg.focused.overlap
+                root.focusedYellow = msg.focused.yellow || 0
             }
             if (msg.connections) {
                 const conns = []
