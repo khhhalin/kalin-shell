@@ -21,7 +21,8 @@ Item {
     property bool rightPanelHover: false
     property bool rightGrace:      false
 
-    readonly property bool rightHover: bar.rightHovered
+    // Null-safe: `qmlBar.item` is null while the TUI bar (BarHost) is active.
+    readonly property bool rightHover: qmlBar.item ? qmlBar.item.rightHovered : false
     readonly property bool rightOpen:  rightPinned || rightHover || rightPanelHover || rightGrace || PromptState.visible
 
     function closeAll(): void {
@@ -100,7 +101,7 @@ Item {
     }
 
     Connections {
-        target: bar
+        target: qmlBar.item
         function onTaskbarContextRequested(appId, x) {
             contextMenu.appId         = appId
             contextMenu.buttonCenterX = x
@@ -136,24 +137,40 @@ Item {
     Component { id: calendarComponent; CalendarPanel { anchors.fill: parent } }
 
     // ── Bottom bar ────────────────────────────────────────────────────────────
-    BottomBar {
-        id: bar
-        screen:           root.screen
-        heightHint:       root.barHeight
-        rightActive:    root.rightOpen
+    // Migration switch (BarConfig.useTuiBar): the QML BottomBar or the
+    // kitty-hosted TUI bar (BarHost). Loaders so only one exists — two bars
+    // would stack two exclusive zones. BottomBar-coupled features (calendar
+    // drawer, taskbar peek/context menu, docked-panel triggers) are inert
+    // under the TUI bar until it reaches parity; see obsidian in kalin-wm.
+    Loader {
+        id: qmlBar
+        active: !BarConfig.useTuiBar
+        sourceComponent: BottomBar {
+            screen:      root.screen
+            heightHint:  root.barHeight
+            rightActive: root.rightOpen
 
-        onRightClicked: {
-            // Exclusive pin behavior: clicking clock pins it, clicking again unpins.
-            // If something else is pinned, switch the pin to clock.
-            if (root.rightPinned && SystemPanelState.rightOwner === "clock") {
-                root.rightPinned = false
-                SystemPanelState.rightOwner = ""
-            } else {
-                root.rightPinned = true
-                SystemPanelState.rightOwner = "clock"
+            onRightClicked: {
+                // Exclusive pin behavior: clicking clock pins it, clicking again unpins.
+                // If something else is pinned, switch the pin to clock.
+                if (root.rightPinned && SystemPanelState.rightOwner === "clock") {
+                    root.rightPinned = false
+                    SystemPanelState.rightOwner = ""
+                } else {
+                    root.rightPinned = true
+                    SystemPanelState.rightOwner = "clock"
+                }
             }
+            onRequestCloseAll: root.closeAll()
         }
-        onRequestCloseAll: root.closeAll()
+    }
+
+    Loader {
+        active: BarConfig.useTuiBar
+        sourceComponent: BarHost {
+            screen:     root.screen
+            heightHint: root.barHeight
+        }
     }
 
 }
