@@ -145,6 +145,21 @@ PanelWindow {
                 barHeight: bar.heightHint
             }
 
+            DiskUsageWidget {
+                id: diskBtn
+                anchors.verticalCenter: parent.verticalCenter
+                active: diskPanel.open
+                onHoveredChanged: diskPanel.buttonHover = hovered
+                onClicked: diskPanel.togglePin()
+            }
+            DockedPanel {
+                id: diskPanel
+                appId: "kalin-disk-panel-" + bar.screen.name
+                command: ["foot", "--app-id=" + diskPanel.appId, "-e", "kalin-bar-tui", "disk"]
+                screen: bar.screen
+                barHeight: bar.heightHint
+            }
+
             WifiLauncher {
                 id: wifiBtn
                 active: wifiPanel.open
