@@ -31,19 +31,13 @@ PanelWindow {
     readonly property int stripY: host.screen.y + host.screen.height - host.heightHint
 
     // Dev hook: KALIN_BAR_WRAP points at a script taking the app_id as its
-    // only argument (used by nested test sessions where kitty/textual-image
-    // aren't packaged yet). Unset = the packaged command.
+    // only argument (nested test sessions iterating ahead of the packaged
+    // wrapper). Unset = kalin-bar-kitty from home-config/desktop.nix, which
+    // owns the kitty options and the absolute-python-path launch.
     readonly property string devWrap: Quickshell.env("KALIN_BAR_WRAP") ?? ""
     readonly property var barCommand: devWrap !== ""
         ? [devWrap, host.appId]
-        : ["kitty",
-           "--config", "NONE",
-           "--class=" + host.appId,
-           "-o", "background=#1e1915",       // must equal Theme.bar / foot bg
-           "-o", "background_opacity=0.88",  // kitty's matching-alpha semantics equal foot's
-           "-o", "font_size=11",
-           "-o", "font_family=JetBrainsMono Nerd Font",
-           "kalin-bar-tui", "bar"]
+        : ["kalin-bar-kitty", host.appId]
 
     implicitHeight: heightHint
     color: "transparent"
@@ -57,12 +51,21 @@ PanelWindow {
     exclusiveZone: implicitHeight
     exclusionMode: ExclusionMode.Auto
 
+    // Empty input region: this surface exists only to reserve the strip, but
+    // it sits in the Top layer directly over the docked kitty — without the
+    // mask it silently ate every click meant for the bar TUI (found in the
+    // nested gate: taskbar/panel clicks never arrived).
+    mask: Region {}
+
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     WlrLayershell.namespace: "windows-bar:bar-host"
 
     Process {
         id: proc
+        // The bar TUI needs its output's name to place docked panels on the
+        // right monitor (see bar.py's KALIN_BAR_OUTPUT).
+        environment: ({ KALIN_BAR_OUTPUT: host.screen.name })
         // The bar must always exist: a crashed/quit bar TUI respawns after a
         // short beat (unlike DockedPanel, which just forgets the spawn until
         // the next hover — nobody hovers a dead bar back to life).
@@ -93,8 +96,13 @@ PanelWindow {
                 stop()
                 return
             }
+            // host.width (this anchored PanelWindow's real width), NOT
+            // screen.width: at boot the QML screen object can lag the actual
+            // mode (the VM gate found the bar docked at the fallback 640 for
+            // good), while the layer surface itself is resized by the
+            // compositor to the true output width.
             KalinViewport.dock(host.appId, host.stripX, host.stripY,
-                               host.screen.width, host.heightHint)
+                               host.width, host.heightHint)
         }
     }
 
@@ -102,16 +110,34 @@ PanelWindow {
         // Arm the strip rect before spawning so the bar's first-ever frame is
         // already docked (no flash at a floating position).
         KalinViewport.dockPrep(host.appId, host.stripX, host.stripY,
-                               host.screen.width, host.heightHint)
+                               host.width, host.heightHint)
         proc.command = host.barCommand
         proc.running = true
         dockSettle.remaining = 60
         dockSettle.restart()
     }
 
-    Component.onCompleted: _spawn()
+    // Don't spawn until the QML screen object is actually populated: at
+    // (nested) startup BarHost can be created while screen.name is still ""
+    // and width is a fallback — the bar then docks under a truncated appid
+    // ("kalin-bar-") at the wrong size, and the panel TUIs lose their output
+    // key (KALIN_BAR_OUTPUT). Poll briefly instead of trusting creation-time
+    // values.
+    Timer {
+        id: screenReady
+        interval: 250
+        repeat: true
+        running: true
+        onTriggered: {
+            if (host.screen && host.screen.name !== "" && host.width > 0) {
+                stop()
+                host._spawn()
+            }
+        }
+    }
 
-    // Monitor geometry changes (mode/scale/hotplug reposition) move the
-    // strip: re-dock the running bar into the new rect.
-    onStripYChanged: if (proc.running) dockSettle.restart()
+    // Monitor geometry changes (boot mode settling, scale, hotplug
+    // reposition) move/resize the strip: re-dock the running bar to fit.
+    onStripYChanged: if (proc.running) { dockSettle.remaining = 10; dockSettle.restart() }
+    onWidthChanged:  if (proc.running) { dockSettle.remaining = 10; dockSettle.restart() }
 }
