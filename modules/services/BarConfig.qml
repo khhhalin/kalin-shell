@@ -11,16 +11,13 @@ Singleton {
     // ── Overall geometry ─────────────────────────────────────────────────────
     property int barHeight:   44    // bottom bar height; also used as rail button size
 
-    // TUI-bar migration flag: swaps BottomBar (QML) for BarHost (a docked
-    // kitty running `kalin-bar-tui bar`) in WindowsBarScreen. Env-gated so a
-    // nested test session can opt in (KALIN_TUI_BAR=1) while the live shell —
-    // which hot-reloads this same file — keeps the QML bar until the TUI bar
-    // reaches panel-toggle parity. Flip the default (and delete BottomBar)
-    // at cutover.
+    // TUI bar (BarHost: a docked kitty running `kalin-bar-tui bar`) is the
+    // default since the 2026-07-17 cutover; KALIN_TUI_BAR=0 is the emergency
+    // escape hatch back to the QML BottomBar.
     // String() coercion: env() hands back a QString-ish value for which a
-    // strict === "1" comparison silently evaluated false (found in the nested
-    // TUI-bar test — the loader never activated despite the env being set).
-    readonly property bool useTuiBar: String(Quickshell.env("KALIN_TUI_BAR") ?? "") === "1"
+    // strict === comparison silently evaluated false (found in the nested
+    // TUI-bar gate — the loader never activated despite the env being set).
+    readonly property bool useTuiBar: String(Quickshell.env("KALIN_TUI_BAR") ?? "") !== "0"
     property int panelWidth:  440   // width of the right slide-out drawer
     property int panelHeight: 520   // height of the drawer (upward from bar)
 

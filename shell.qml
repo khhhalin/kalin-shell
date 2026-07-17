@@ -40,7 +40,4 @@ ShellRoot {
 
     // Notification popups (freedesktop NotificationServer).
     Notifications {}
-
-    // Global password prompt for Wi-Fi and other secure connections.
-    PasswordDialog {}
 }
