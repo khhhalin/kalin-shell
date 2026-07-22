@@ -9,7 +9,7 @@ Singleton {
     id: root
 
     // ── Overall geometry ─────────────────────────────────────────────────────
-    property int barHeight:   44    // bottom bar height; also used as rail button size
+    property int barHeight:   22    // TUI bar strip height — one kitty row at font_size 11
 
     // TUI bar (BarHost: a docked kitty running `kalin-bar-tui bar`) is the
     // default since the 2026-07-17 cutover; KALIN_TUI_BAR=0 is the emergency
