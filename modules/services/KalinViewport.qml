@@ -13,23 +13,15 @@ import Quickshell.Io
 // Wire protocol (newline-delimited), matched to code/src/modules/ipc.c:
 //   server -> client: {"type":"state","viewport":{x,y,zoom,follow,follow_new},
 //                      "crop":bool,"super_held":bool,"exit_pending":bool,
-//                      "focused":{appid,title,fullscreen,ontop,overlap,yellow},
-//                      "connections":[{a,b,a_rect,b_rect}],
-//                      "pending_connect":{rect,cursor}|null}
+//                      "focused":{appid,title,fullscreen,ontop,overlap,yellow}}
 //   client -> server: pan <dx> <dy> | zoom <factor> | zoom-reset | follow-toggle
-//                      | sever <a_id> <b_id> | ontop-toggle
-// "pending_connect" (Super+L, "Link" in the hold-Super menu) is a live
-// rubber-band from the armed source window to the current cursor position;
-// null once nothing's armed. There's no client->server command for it —
-// arming/completing/cancelling are all compositor-side (see
-// connect_pick_arm/complete/cancel(), connection_graph.c); the shell only
-// draws the line (ConnectionLines.qml), same division of labor as
-// "connections"/sever above.
-// "overlap" (whether the focused window is exempt from connection-graph
-// overlap-avoidance, toggled by the `toggle-overlap` compositor keybind) is
+//                      | ontop-toggle
+// "overlap" (the focused window's `toggle-overlap` flag, `Super+Shift+o`) is
 // read-only here — mirrored for the hold-Super menu's on/off indicator, same
 // as "ontop"/"fullscreen"; there's no shell-side command for it since the
-// menu is a key-hint overlay, not clickable (see WindowActions.qml).
+// menu is a key-hint overlay, not clickable (see WindowActions.qml). The flag
+// is dormant since the connection graph was removed; a rail-based grow-push
+// re-homes it (kalin-wm layout Phase 3).
 // ─────────────────────────────────────────────────────────────────────────────
 Singleton {
     id: root
@@ -64,26 +56,6 @@ Singleton {
     property real focusedYellow: 0
     // Focused window's on-screen rect (px), for flowing overlays out of it.
     property rect focusedRect: Qt.rect(0, 0, 0, 0)
-
-    // Connection graph: every live edge (each window can have up to 8,
-    // one per compass direction), with both endpoints' on-screen rects
-    // (already world->screen transformed by the compositor). Always
-    // populated regardless of superHeld/overviewActive — the compositor
-    // sends it unconditionally so we don't need a round-trip when Super is
-    // pressed or overview opens; we gate the shell-side *drawing* on those
-    // two flags instead (see ConnectionLines.qml). Each entry:
-    // {a, b, aRect, bRect} — undirected, a/b order has no meaning.
-    property var connections: []
-
-    // Menu-armed manual connect (Super+L / WindowActions.qml's "Link"
-    // button, see connect_pick_arm() in connection_graph.c): while pending,
-    // `pendingRect` is the armed source window's on-screen rect and
-    // `pendingCursor` is the live cursor position, so ConnectionLines.qml can
-    // draw a rubber-band between them. `pendingConnect` is just
-    // `pendingRect` non-null as a plain bool, for the menu's on/off dot.
-    property bool pendingConnect: false
-    property rect pendingRect: Qt.rect(0, 0, 0, 0)
-    property point pendingCursor: Qt.point(0, 0)
 
     // app_id of whichever docked client (see dock()/undock() below) the
     // cursor is currently over, or "" if none. A docked client is a real
@@ -150,28 +122,6 @@ Singleton {
                 root.focusedOverlap = !!msg.focused.overlap
                 root.focusedYellow = msg.focused.yellow || 0
             }
-            if (msg.connections) {
-                const conns = []
-                for (const c of msg.connections) {
-                    conns.push({
-                        a: c.a,
-                        b: c.b,
-                        aRect: Qt.rect(c.a_rect.x, c.a_rect.y, c.a_rect.w, c.a_rect.h),
-                        bRect: Qt.rect(c.b_rect.x, c.b_rect.y, c.b_rect.w, c.b_rect.h),
-                    })
-                }
-                root.connections = conns
-            } else {
-                root.connections = []
-            }
-            if (msg.pending_connect) {
-                root.pendingConnect = true
-                root.pendingRect = Qt.rect(msg.pending_connect.rect.x, msg.pending_connect.rect.y,
-                                            msg.pending_connect.rect.w, msg.pending_connect.rect.h)
-                root.pendingCursor = Qt.point(msg.pending_connect.cursor.x, msg.pending_connect.cursor.y)
-            } else {
-                root.pendingConnect = false
-            }
             root.dockHoverAppId = msg.dock_hover || ""
             root.available = true
             root.stateChanged()
@@ -189,8 +139,6 @@ Singleton {
     function zoomReset(): void { send("zoom-reset") }
     function toggleFollow(): void { send("follow-toggle") }
     function spotlight(on): void { send("spotlight " + (on ? 1 : 0)) }
-    // Cut the connection between two specific windows.
-    function sever(idA, idB): void { send("sever " + idA + " " + idB) }
 
     // Arm a one-shot "dock this app_id straight into this rect the moment
     // it maps" request — send *before* spawning a panel's backing terminal

@@ -41,8 +41,6 @@ Variants {
             { glyph: "⛶", key: "E",      label: "Fullscreen", state: KalinViewport.focusedFullscreen },
             { glyph: "◳", key: "C",      label: "Crop",    state: KalinViewport.cropActive },
             { glyph: "⧉", key: "⇧O",     label: "Overlap", state: KalinViewport.focusedOverlap },
-            { glyph: "⇄", key: "Ctrl←→", label: "Swap",    state: null },
-            { glyph: "⛓", key: "L",      label: "Link",    state: KalinViewport.pendingConnect },
         ]
 
         readonly property bool hasFocused:

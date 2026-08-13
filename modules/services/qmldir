@@ -3,7 +3,6 @@ module kalin.services
 singleton BarConfig 1.0 BarConfig.qml
 singleton CompositorService 1.0 CompositorService.qml
 singleton KalinViewport 1.0 KalinViewport.qml
-singleton LineGeometry 1.0 LineGeometry.qml
 singleton MenuState 1.0 MenuState.qml
 singleton NiriIpc 1.0 NiriIpc.qml
 singleton NotificationService 1.0 NotificationService.qml

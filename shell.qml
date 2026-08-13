@@ -35,9 +35,6 @@ ShellRoot {
     // Hold-Super window-actions hint menu + "Esc again to quit" prompt.
     WindowActions {}
 
-    // Hold-Super spawn-connection lines (kalin-wm only; inert on niri).
-    ConnectionLines {}
-
     // Notification popups (freedesktop NotificationServer).
     Notifications {}
 }
